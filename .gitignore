@@ -1,0 +1,11 @@
+node_modules/
+.env
+.env.local
+.env.*.local
+*.log
+dist/
+build/
+db/*.db
+.DS_Store
+*.swp
+.vscode/settings.json

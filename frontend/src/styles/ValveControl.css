@@ -1,0 +1,510 @@
+.valve-control-container {
+  padding: 2rem;
+}
+
+.valve-header {
+  margin-bottom: 2rem;
+}
+
+.valve-header h1 {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.valve-subtitle {
+  color: #64748b;
+  font-size: 1rem;
+}
+
+.valve-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  font-size: 1.1rem;
+  color: #64748b;
+}
+
+/* Real-time Sensor Section */
+.realtime-sensor-section {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  color: white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.realtime-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.realtime-icon {
+  font-size: 1.25rem;
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.freshness-badge {
+  margin-left: auto;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+}
+
+.sensor-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+}
+
+.sensor-metric {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 1rem;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  transition: all 0.3s ease;
+}
+
+.sensor-metric.alert {
+  background: rgba(255, 107, 107, 0.2);
+  border-color: rgba(255, 107, 107, 0.5);
+}
+
+.metric-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.metric-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.metric-unit {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* Main Valve Section */
+.valve-main-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 3rem;
+}
+
+.valve-status-card {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+}
+
+.valve-visual {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.valve-icon {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.valve-icon.closed {
+  background: linear-gradient(135deg, #f97316 0%, #dc2626 100%);
+}
+
+.valve-icon.open {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.valve-status-info {
+  flex: 1;
+}
+
+.valve-status-label {
+  font-size: 0.85rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.5rem;
+}
+
+.valve-status-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  transition: all 0.3s ease;
+}
+
+.valve-status-value.open {
+  color: #10b981;
+}
+
+.valve-status-value.closed {
+  color: #dc2626;
+}
+
+.valve-connection {
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  background-color: #f1f5f9;
+  text-align: center;
+}
+
+.valve-connection.connected {
+  color: #10b981;
+  background-color: #ecfdf5;
+  border: 1px solid #d1fae5;
+}
+
+.valve-connection.disconnected {
+  color: #dc2626;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+}
+
+/* Controls */
+.valve-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.btn-control {
+  padding: 1rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.btn-open {
+  background-color: #10b981;
+  color: white;
+}
+
+.btn-open:hover:not(.disabled) {
+  background-color: #059669;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.btn-open.disabled {
+  background-color: #d1fae5;
+  color: #10b981;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn-close {
+  background-color: #dc2626;
+  color: white;
+}
+
+.btn-close:hover:not(.disabled) {
+  background-color: #991b1b;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+}
+
+.btn-close.disabled {
+  background-color: #fee2e2;
+  color: #dc2626;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn-icon {
+  font-size: 1.25rem;
+}
+
+/* Action Status */
+.action-status {
+  padding: 1rem;
+  border-radius: 8px;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-top: 1rem;
+  font-weight: 600;
+}
+
+.action-status.success {
+  background-color: #ecfdf5;
+  border: 1px solid #d1fae5;
+  color: #10b981;
+}
+
+.action-status.error {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+}
+
+/* Details Section */
+.valve-details-section {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+}
+
+.valve-details-section h2 {
+  margin-bottom: 1.5rem;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.detail-box {
+  background-color: #f8fafc;
+  border-radius: 8px;
+  padding: 1rem;
+  border: 1px solid #e2e8f0;
+}
+
+.detail-label {
+  font-size: 0.8rem;
+  color: #64748b;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.detail-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+/* History Section */
+.valve-history-section {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.valve-history-section h2 {
+  margin-bottom: 1.5rem;
+}
+
+.no-history {
+  text-align: center;
+  padding: 3rem 2rem;
+  color: #64748b;
+}
+
+.history-table-wrapper {
+  overflow-x: auto;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.history-table thead {
+  background-color: #f1f5f9;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.history-table th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.history-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  color: #1e293b;
+}
+
+.history-row:hover {
+  background-color: #f8fafc;
+}
+
+.timestamp {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.action-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.action-badge.open {
+  background-color: #ecfdf5;
+  color: #10b981;
+}
+
+.action-badge.close {
+  background-color: #fef2f2;
+  color: #dc2626;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-badge.success {
+  background-color: #ecfdf5;
+  color: #10b981;
+}
+
+.status-badge.failed {
+  background-color: #fef2f2;
+  color: #dc2626;
+}
+
+.result-success {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.result-failed {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+/* Safety Section */
+.safety-section {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.safety-section h2 {
+  margin-bottom: 1.5rem;
+}
+
+.safety-box {
+  background-color: #fef3c7;
+  border-left: 4px solid #eab308;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.safety-box.alert {
+  background-color: #fee2e2;
+  border-left-color: #dc2626;
+}
+
+.safety-title {
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 0.75rem;
+}
+
+.safety-list {
+  list-style-position: inside;
+  color: #1e293b;
+  line-height: 1.8;
+}
+
+.safety-list li {
+  margin-bottom: 0.5rem;
+}
+
+@media (max-width: 1024px) {
+  .valve-main-section {
+    grid-template-columns: 1fr;
+  }
+
+  .valve-visual {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 768px) {
+  .valve-control-container {
+    padding: 1rem;
+  }
+
+  .valve-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .valve-icon {
+    width: 80px;
+    height: 80px;
+    font-size: 2rem;
+  }
+
+  .valve-status-value {
+    font-size: 1.75rem;
+  }
+
+  .details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .history-table {
+    font-size: 0.8rem;
+  }
+
+  .history-table th,
+  .history-table td {
+    padding: 0.5rem;
+  }
+}

@@ -1,0 +1,226 @@
+/* Performance Monitor */
+.performance-monitor {
+  max-width: 1200px;
+}
+
+.monitor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.monitor-header h3 {
+  margin: 0;
+  color: #1e293b;
+}
+
+.refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.refresh-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.refresh-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.refresh-btn svg.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.stats-section {
+  margin-bottom: 2rem;
+}
+
+.stats-section h4 {
+  margin-top: 0;
+  color: #1e293b;
+  margin-bottom: 1rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1.5rem;
+}
+
+.stat-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.stat-card.good {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.stat-card.warning {
+  border-color: #fcd34d;
+  background: #fffbeb;
+}
+
+.stat-card.danger {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.stat-card.info {
+  border-color: #93c5fd;
+  background: #f0f9ff;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0.5rem 0 0 0;
+}
+
+.stat-unit {
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.chart-section {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.chart-section h4 {
+  margin-top: 0;
+  color: #1e293b;
+  margin-bottom: 1rem;
+}
+
+.resource-section {
+  margin-bottom: 2rem;
+}
+
+.resource-section h4 {
+  margin-top: 0;
+  color: #1e293b;
+  margin-bottom: 1rem;
+}
+
+.resource-charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 1.5rem;
+}
+
+.resource-chart {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.resource-chart h5 {
+  margin-top: 0;
+  color: #1e293b;
+  margin-bottom: 1rem;
+}
+
+.recommendations-section {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 2rem;
+}
+
+.recommendations-section h4 {
+  margin-top: 0;
+  color: #1e293b;
+  margin-bottom: 1rem;
+}
+
+.recommendations {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.recommendation {
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 4px solid;
+}
+
+.recommendation.success {
+  background: #f0fdf4;
+  border-color: #10b981;
+  color: #065f46;
+}
+
+.recommendation.warning {
+  background: #fffbeb;
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+.recommendation.danger {
+  background: #fef2f2;
+  border-color: #ef4444;
+  color: #7f1d1d;
+}
+
+.recommendation p {
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .resource-charts {
+    grid-template-columns: 1fr;
+  }
+
+  .monitor-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+}
