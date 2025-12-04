@@ -53,6 +53,9 @@ const formatSensorData = (row) => {
     flow: row.flow,
     leak_status: Boolean(row.leak_status),
     valve_state: row.valve_state,
+    temperature: typeof row.temperature !== 'undefined' && row.temperature !== null ? parseFloat(row.temperature) : null,
+    conductivity: typeof row.conductivity !== 'undefined' && row.conductivity !== null ? parseFloat(row.conductivity) : null,
+    location: row.location || null,
     created_at: row.created_at
   };
 };

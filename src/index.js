@@ -22,6 +22,7 @@ const leakDetectionRoutes = require('../routes/leakDetectionRoutes');
 const integratedRoutes = require('../routes/integratedRoutes');
 // `websocket` REST endpoints live under `src/routes/websocket.js`
 const websocketRoutes = require('./routes/websocket');
+const alertsRoutes = require('../routes/alertsRoutes');
 
 // Initialize Express app
 const app = express();
@@ -116,9 +117,13 @@ app.use('/api/train-model', mlRoutes);
 app.use('/api/leak-detection', leakDetectionRoutes);
 app.use('/api/detection', integratedRoutes);
 app.use('/api/websocket', websocketRoutes);
+// Alerts endpoints (legacy frontend expects /api/alerts/*)
+app.use('/api/alerts', alertsRoutes);
 
 // Valve control endpoint (mounted separately) - controller at repo root `controllers/`
 app.post('/api/valve-control', require('../controllers/leakDetectionController').controlValveEndpoint);
+app.get('/api/valve-control/status', require('../controllers/leakDetectionController').getValveStatus);
+app.get('/api/valve-control/history', require('../controllers/leakDetectionController').getValveHistory);
 
 /**
  * ===== ERROR HANDLING =====

@@ -76,7 +76,7 @@ const HistoricalData = () => {
     time: new Date(item.timestamp).toLocaleTimeString(),
     pressure: parseFloat(item.pressure) || 0,
     flow: parseFloat(item.flow) || 0,
-    temperature: parseFloat(item.temperature) || 0,
+    temperature: (typeof item.temperature !== 'undefined' && item.temperature !== null && !isNaN(item.temperature)) ? parseFloat(item.temperature) : undefined,
     index: idx,
   }));
 
@@ -106,7 +106,7 @@ const HistoricalData = () => {
             </div>
             <div className="metric-box">
               <span className="metric-label">Temperature (°C)</span>
-              <span className="metric-value">{parseFloat(latestSensorData.temperature).toFixed(1)}</span>
+              <span className="metric-value">{latestSensorData && typeof latestSensorData.temperature !== 'undefined' && latestSensorData.temperature !== null ? parseFloat(latestSensorData.temperature).toFixed(1) : 'N/A'}</span>
             </div>
             <div className="metric-box">
               <span className="metric-label">Conductivity</span>
@@ -239,7 +239,8 @@ const HistoricalData = () => {
         <div className="chart-card">
           <h3>Temperature Trend</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={chartData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+            {/* Use only data points that have a numeric temperature to avoid empty domain */}
+            <LineChart data={chartData.filter(d => typeof d.temperature !== 'undefined' && d.temperature !== null)} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="time" angle={-45} textAnchor="end" height={80} />
               <YAxis />
@@ -311,8 +312,8 @@ const HistoricalData = () => {
                     <td>{new Date(item.timestamp).toLocaleString()}</td>
                     <td>{parseFloat(item.pressure).toFixed(2)}</td>
                     <td>{parseFloat(item.flow).toFixed(2)}</td>
-                    <td>{parseFloat(item.temperature).toFixed(2)}</td>
-                    <td>{parseFloat(item.conductivity).toFixed(0)}</td>
+                    <td>{typeof item.temperature !== 'undefined' && item.temperature !== null ? parseFloat(item.temperature).toFixed(2) : 'N/A'}</td>
+                    <td>{typeof item.conductivity !== 'undefined' && item.conductivity !== null ? parseFloat(item.conductivity).toFixed(0) : 'N/A'}</td>
                   </tr>
                 ))}
               </tbody>

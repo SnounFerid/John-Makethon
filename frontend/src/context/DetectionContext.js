@@ -69,8 +69,9 @@ export const DetectionContextProvider = ({ children }) => {
       console.log('[CONTEXT] Fetching recent alerts', { limit });
       const response = await detectionAPI.getRecentAlerts(limit);
       console.log('[CONTEXT] Recent alerts fetched:', response.data);
-      setRecentAlerts(response.data.alerts || []);
-      setAlertHistory(response.data.alerts || []);
+      // Server returns { success: true, data: alerts, count }
+      setRecentAlerts(response.data.data || response.data || []);
+      setAlertHistory(response.data.data || response.data || []);
     } catch (err) {
       const errorMsg = err.response?.data?.message || err.message;
       console.error('[CONTEXT] Failed to fetch recent alerts:', errorMsg);
@@ -83,7 +84,8 @@ export const DetectionContextProvider = ({ children }) => {
       console.log('[CONTEXT] Fetching recent detections', { limit });
       const response = await detectionAPI.getRecentDetections(limit);
       console.log('[CONTEXT] Recent detections fetched:', response.data);
-      setRecentDetections(response.data.detections || []);
+      // Server returns { success: true, data: detections, count }
+      setRecentDetections(response.data.data || response.data || []);
     } catch (err) {
       const errorMsg = err.response?.data?.message || err.message;
       console.error('[CONTEXT] Failed to fetch recent detections:', errorMsg);
@@ -110,7 +112,8 @@ export const DetectionContextProvider = ({ children }) => {
       console.log('[CONTEXT] Fetching valve status');
       const response = await leakDetectionAPI.getValveStatus();
       console.log('[CONTEXT] Valve status:', response.data);
-      setValveStatus(response.data);
+      // Server returns { success: true, data: { currentState, lastUpdated, ... } }
+      setValveStatus(response.data.data || response.data || null);
     } catch (err) {
       const errorMsg = err.response?.data?.message || err.message;
       console.error('[CONTEXT] Failed to fetch valve status:', errorMsg);
@@ -123,7 +126,8 @@ export const DetectionContextProvider = ({ children }) => {
       console.log('[CONTEXT] Fetching valve history');
       const response = await leakDetectionAPI.getValveHistory();
       console.log('[CONTEXT] Valve history:', response.data);
-      setValveHistory(response.data.history || []);
+      // Server returns { success: true, data: [ ... ] }
+      setValveHistory(response.data.data || response.data || []);
     } catch (err) {
       const errorMsg = err.response?.data?.message || err.message;
       console.error('[CONTEXT] Failed to fetch valve history:', errorMsg);
@@ -136,7 +140,8 @@ export const DetectionContextProvider = ({ children }) => {
       console.log('[CONTEXT] Fetching predictions');
       const response = await leakDetectionAPI.getPredictions();
       console.log('[CONTEXT] Predictions fetched:', response.data);
-      setPredictions(response.data);
+      // Server returns { success: true, data: predictions, modelVersion }
+      setPredictions(response.data.data || response.data || null);
     } catch (err) {
       const errorMsg = err.response?.data?.message || err.message;
       console.error('[CONTEXT] Failed to fetch predictions:', errorMsg);
@@ -178,7 +183,24 @@ export const DetectionContextProvider = ({ children }) => {
       console.log('[CONTEXT] Controlling valve', { action });
       const response = await leakDetectionAPI.controlValve(action);
       console.log('[CONTEXT] Valve action successful', response.data);
-      await fetchValveStatus();
+      // Update valve status locally immediately for responsive UI
+      try {
+        const returned = response.data?.data || response.data || {};
+        const newState = (returned.newState || returned.operation || '').toString().toUpperCase() || (action || '').toString().toUpperCase();
+        const ts = returned.timestamp || Date.now();
+        setValveStatus(prev => ({
+          ...(prev || {}),
+          currentState: newState,
+          lastUpdated: ts,
+          lastAction: returned.operation || newState
+        }));
+      } catch (err) {
+        // ignore local update problems and fall back to fetching from server
+        console.warn('[CONTEXT] Could not apply local valve status update, fetching from server', err.message || err);
+        await fetchValveStatus();
+      }
+      // Also refresh authoritative state in background
+      fetchValveStatus();
       return response.data;
     } catch (err) {
       const errorMsg = err.response?.data?.message || err.message;

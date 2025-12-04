@@ -66,7 +66,8 @@ const ValveControl = () => {
     return <div className="valve-loading">Loading valve control...</div>;
   }
 
-  const isOpen = valveStatus?.status === 'open';
+  // Backend returns `currentState` as 'OPEN' or 'CLOSED'
+  const isOpen = (valveStatus?.currentState || '').toUpperCase() === 'OPEN';
   const valveConnected = valveStatus?.connected !== false;
 
   return (
@@ -85,24 +86,24 @@ const ValveControl = () => {
             <span className="freshness-badge">{getFormattedFreshness()}</span>
           </div>
           <div className="sensor-metrics-grid">
-            <div className={`sensor-metric ${parseFloat(latestSensorData.pressure) > 60 ? 'alert' : ''}`}>
+            <div className={`sensor-metric ${parseFloat(latestSensorData.pressure || 0) > 60 ? 'alert' : ''}`}>
               <span className="metric-label">Pressure (PSI)</span>
-              <span className="metric-value">{parseFloat(latestSensorData.pressure).toFixed(2)}</span>
+              <span className="metric-value">{latestSensorData && typeof latestSensorData.pressure !== 'undefined' ? parseFloat(latestSensorData.pressure).toFixed(2) : 'N/A'}</span>
               <span className="metric-unit">Critical: &gt;60 PSI</span>
             </div>
-            <div className={`sensor-metric ${parseFloat(latestSensorData.flow) > 50 ? 'alert' : ''}`}>
+            <div className={`sensor-metric ${parseFloat(latestSensorData.flow || 0) > 50 ? 'alert' : ''}`}>
               <span className="metric-label">Flow (GPM)</span>
-              <span className="metric-value">{parseFloat(latestSensorData.flow).toFixed(2)}</span>
+              <span className="metric-value">{latestSensorData && typeof latestSensorData.flow !== 'undefined' ? parseFloat(latestSensorData.flow).toFixed(2) : 'N/A'}</span>
               <span className="metric-unit">High: &gt;50 GPM</span>
             </div>
-            <div className={`sensor-metric ${parseFloat(latestSensorData.temperature) > 40 ? 'alert' : ''}`}>
+            <div className={`sensor-metric ${parseFloat(latestSensorData.temperature || 0) > 40 ? 'alert' : ''}`}>
               <span className="metric-label">Temperature (°C)</span>
-              <span className="metric-value">{parseFloat(latestSensorData.temperature).toFixed(1)}</span>
+              <span className="metric-value">{latestSensorData && typeof latestSensorData.temperature !== 'undefined' ? parseFloat(latestSensorData.temperature).toFixed(1) : 'N/A'}</span>
               <span className="metric-unit">Warning: &gt;40°C</span>
             </div>
             <div className="sensor-metric">
               <span className="metric-label">Conductivity</span>
-              <span className="metric-value">{parseFloat(latestSensorData.conductivity).toFixed(3)}</span>
+              <span className="metric-value">{latestSensorData && typeof latestSensorData.conductivity !== 'undefined' ? parseFloat(latestSensorData.conductivity).toFixed(3) : 'N/A'}</span>
               <span className="metric-unit">µS/cm</span>
             </div>
           </div>

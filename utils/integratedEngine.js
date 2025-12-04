@@ -20,6 +20,9 @@ class IntegratedLeakDetectionEngine {
       maintenanceReady: false
     };
     this.alerts = [];
+    // Hysteresis settings: require N consecutive ML anomalies before alerting
+    this.hysteresisConsecutive = parseInt(process.env.HYSTERESIS_CONSECUTIVE, 10) || 3;
+    this.mlConsecutiveAnomalies = 0;
     this.maxHistorySize = 10000;
 
     console.log('[INTEGRATED_ENGINE] Leak Detection Engine initialized');
@@ -130,7 +133,12 @@ class IntegratedLeakDetectionEngine {
           flow_stddev_60s: features.flow_stddev_60s || 0.3,
           pressure_flow_ratio: features.pressure_flow_ratio,
           hour_of_day: features.hour_of_day,
-          is_weekend: features.is_weekend ? 1 : 0
+          is_weekend: features.is_weekend ? 1 : 0,
+          // Include engineered features
+          pressure_flow_ratio_variance: features.pressure_flow_ratio_variance || 0,
+          combined_rate_of_change: features.combined_rate_of_change || 0,
+          combined_volatility: features.combined_volatility || 0,
+          flow_pressure_interaction: features.flow_pressure_interaction || 0
         });
 
         mlResult = {
@@ -171,9 +179,23 @@ class IntegratedLeakDetectionEngine {
       this.detectionHistory.shift();
     }
 
-    // Generate alerts if needed
-    if (integratedResult.overallLeakDetected) {
+    // Generate alerts if needed with hysteresis
+    const ruleTriggered = ruleBasedResult && ruleBasedResult.is_leak_detected;
+
+    if (ruleTriggered) {
+      // Immediate alert when rule-based detection indicates leak
+      this.mlConsecutiveAnomalies = 0;
       this._generateAlert(integratedResult);
+    } else if (mlResult && mlResult.isAnomaly) {
+      // Increment ML consecutive anomaly counter and only alert when threshold reached
+      this.mlConsecutiveAnomalies++;
+
+      if (this.mlConsecutiveAnomalies >= this.hysteresisConsecutive && integratedResult.detection.overallLeakDetected) {
+        this._generateAlert(integratedResult);
+      }
+    } else {
+      // Reset counter on normal reading
+      this.mlConsecutiveAnomalies = 0;
     }
 
     return integratedResult;
@@ -285,6 +307,17 @@ class IntegratedLeakDetectionEngine {
       readings: detectionResult.readings,
       recommendedActions: this._generateRecommendedActions(detectionResult)
     };
+
+    // Add lifecycle fields for acknowledgement/resolution and notifications
+    alert.acknowledged = false;
+    alert.acknowledgedBy = null;
+    alert.acknowledgedAt = null;
+    alert.acknowledgeNotes = null;
+    alert.resolved = false;
+    alert.resolvedBy = null;
+    alert.resolvedAt = null;
+    alert.resolveNotes = null;
+    alert.notificationsSent = [];
 
     this.alerts.push(alert);
     if (this.alerts.length > 1000) {

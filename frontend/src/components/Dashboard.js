@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { DetectionContext } from '../context/DetectionContext';
 import { WebSocketContext } from '../context/WebSocketContext';
+import { detectionAPI } from '../services/apiClient';
 import {
   LineChart, Line, AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell
@@ -13,6 +14,8 @@ const Dashboard = () => {
     currentReading,
     detectionStatus,
     recentAlerts,
+    recentDetections,
+    fetchRecentDetections,
     loading,
     fetchDetectionStatus,
     fetchRecentAlerts,
@@ -22,26 +25,96 @@ const Dashboard = () => {
   const {
     isConnected,
     latestSensorData,
-    latestAlert,
+    alerts,
   } = useContext(WebSocketContext);
 
   const [displayReading, setDisplayReading] = useState(null);
+  const [liveReadings, setLiveReadings] = useState([]);
+
+  // Ensure charts update at least once per minute with latest values
+  useEffect(() => {
+    let cancelled = false;
+
+    const appendLatestPoint = async () => {
+      try {
+        let point = null;
+
+        if (isConnected && latestSensorData) {
+          point = {
+            timestamp: latestSensorData.timestamp || Date.now(),
+            pressure: Number(latestSensorData.pressure) || 0,
+            flow: Number(latestSensorData.flow) || 0,
+            leakRisk: latestSensorData.leakRisk != null ? Number(latestSensorData.leakRisk) : 0,
+          };
+        } else {
+          // Fallback: fetch one recent detection from API
+          try {
+            const resp = await detectionAPI.getRecentDetections(1);
+            const payload = resp.data?.data || resp.data || [];
+            const entry = Array.isArray(payload) && payload.length > 0 ? payload[0] : null;
+            if (entry) {
+              point = {
+                timestamp: entry.timestamp || Date.now(),
+                pressure: Number(entry.pressure || entry.readings?.pressure) || 0,
+                flow: Number(entry.flow || entry.readings?.flow) || 0,
+                leakRisk: entry.leakProbability ? Number(String(entry.leakProbability).replace('%','')) : (entry.detection?.overallProbability ? Number(entry.detection.overallProbability) : 0),
+              };
+            }
+          } catch (err) {
+            // ignore fetch errors, will try again on next tick
+            console.warn('[DASHBOARD] Minute poll: could not fetch recent detection', err.message || err);
+          }
+        }
+
+        if (point && !cancelled) {
+          setLiveReadings(prev => {
+            const next = prev.concat([point]);
+            return next.slice(-200); // keep last 200 points
+          });
+        }
+      } catch (err) {
+        console.error('[DASHBOARD] Error appending latest point', err.message || err);
+      }
+    };
+
+    // Append immediately, then every minute
+    appendLatestPoint();
+    const id = setInterval(appendLatestPoint, 60 * 1000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [isConnected, latestSensorData]);
 
   useEffect(() => {
     console.log('[DASHBOARD] Component mounted');
     fetchDetectionStatus();
     fetchRecentAlerts(5);
+    // load recent detections for charts
+    if (fetchRecentDetections) fetchRecentDetections(50);
   }, [fetchDetectionStatus, fetchRecentAlerts]);
 
-  // Use WebSocket data when available, otherwise fall back to API data
   useEffect(() => {
     if (isConnected && latestSensorData) {
       console.log('[DASHBOARD] Using WebSocket data:', latestSensorData);
       setDisplayReading(latestSensorData);
-      
+
       // Also process it through the detection system
       processSensorReading(latestSensorData).catch((err) => {
         console.error('[DASHBOARD] Error processing reading:', err.message);
+      });
+
+      // maintain a short live buffer for charts when detections are not yet available
+      setLiveReadings((prev) => {
+        const next = prev.concat([{
+          timestamp: latestSensorData.timestamp || Date.now(),
+          pressure: latestSensorData.pressure,
+          flow: latestSensorData.flow,
+          temperature: latestSensorData.temperature,
+          leakRisk: latestSensorData.leakRisk || null
+        }]);
+        return next.slice(-100);
       });
     } else if (currentReading) {
       console.log('[DASHBOARD] Using API data');
@@ -49,13 +122,12 @@ const Dashboard = () => {
     }
   }, [latestSensorData, currentReading, isConnected, processSensorReading]);
 
-  // Update alerts when new alert arrives via WebSocket
+  // Update recent detections when WebSocket alerts change or on mount
   useEffect(() => {
-    if (latestAlert) {
-      console.log('[DASHBOARD] New alert received via WebSocket:', latestAlert);
-      fetchRecentAlerts(5);
+    if (fetchRecentDetections) {
+      fetchRecentDetections(50).catch((err) => console.warn('[DASHBOARD] fetchRecentDetections failed', err.message));
     }
-  }, [latestAlert, fetchRecentAlerts]);
+  }, [alerts?.length, fetchRecentDetections]);
 
   if (loading) {
     return <div className="dashboard-loading">Loading dashboard...</div>;
@@ -67,14 +139,24 @@ const Dashboard = () => {
     { name: 'Temperature', value: displayReading?.temperature || 0, max: 80, unit: '°C', color: '#f97316' },
   ];
 
-  const chartData = [
-    { time: '00:00', pressure: 45, flow: 85, leakRisk: 15 },
-    { time: '02:00', pressure: 48, flow: 90, leakRisk: 18 },
-    { time: '04:00', pressure: 42, flow: 75, leakRisk: 25 },
-    { time: '06:00', pressure: 50, flow: 95, leakRisk: 12 },
-    { time: '08:00', pressure: 46, flow: 88, leakRisk: 20 },
-    { time: '10:00', pressure: 49, flow: 92, leakRisk: 14 },
-  ];
+  // Build chartData from recentDetections (preferred) or liveReadings fallback
+  let chartData = [];
+  if (Array.isArray(recentDetections) && recentDetections.length > 0) {
+    // map the detection objects produced by integratedEngine
+    chartData = recentDetections.slice(-50).map((d) => ({
+      time: new Date(d.timestamp).toLocaleTimeString(),
+      pressure: Number(d.readings?.pressure) || 0,
+      flow: Number(d.readings?.flow) || 0,
+      leakRisk: Number(d.detection?.overallProbability) || 0,
+    }));
+  } else if (liveReadings.length > 0) {
+    chartData = liveReadings.slice(-50).map((r) => ({
+      time: new Date(r.timestamp).toLocaleTimeString(),
+      pressure: Number(r.pressure) || 0,
+      flow: Number(r.flow) || 0,
+      leakRisk: r.leakRisk != null ? Number(r.leakRisk) : 0,
+    }));
+  }
 
   return (
     <div className="dashboard-container">

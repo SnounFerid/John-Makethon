@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { mlDetector } = require('../utils/mlAnomalyDetector');
+const { mlDetector } = require('../../utils/mlAnomalyDetector');
 
 /**
  * Train ML model with prepared data

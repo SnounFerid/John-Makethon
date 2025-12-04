@@ -25,6 +25,7 @@ class DataSimulator {
     this.simulationInterval = null;
     this.currentPressure = 50; // PSI
     this.currentFlow = 10; // L/min
+    this.currentTemperature = 20; // °C
     this.simulationStep = 0;
     this.anomalies = [];
     this.dataCallback = null;
@@ -63,6 +64,8 @@ class DataSimulator {
     return {
       pressure: Math.round(this.currentPressure * 100) / 100,
       flow: Math.round(this.currentFlow * 100) / 100,
+      temperature: Math.round((this._generateRandomValue(18, 24, 0.5)) * 10) / 10,
+      conductivity: Math.round(this._generateRandomValue(100, 800, 50)),
       leak_status: false,
       valve_state: 'OPEN'
     };
@@ -85,6 +88,8 @@ class DataSimulator {
     return {
       pressure: Math.round(this.currentPressure * 100) / 100,
       flow: Math.round(this.currentFlow * 100) / 100,
+      temperature: Math.round((this._generateRandomValue(17, 23, 0.5)) * 10) / 10,
+      conductivity: Math.round(this._generateRandomValue(120, 900, 50)),
       leak_status: leakDetected,
       valve_state: 'OPEN'
     };
@@ -111,6 +116,8 @@ class DataSimulator {
     return {
       pressure: Math.round(this.currentPressure * 100) / 100,
       flow: Math.round(this.currentFlow * 100) / 100,
+      temperature: Math.round((this._generateRandomValue(15, 22, 1.0)) * 10) / 10,
+      conductivity: Math.round(this._generateRandomValue(200, 1200, 100)),
       leak_status: true,
       valve_state: 'OPEN'
     };
@@ -136,6 +143,8 @@ class DataSimulator {
     return {
       pressure: Math.round(this.currentPressure * 100) / 100,
       flow: Math.round(this.currentFlow * 100) / 100,
+      temperature: Math.round((this._generateRandomValue(10, 20, 2.0)) * 10) / 10,
+      conductivity: Math.round(this._generateRandomValue(300, 1500, 200)),
       leak_status: true,
       valve_state: 'OPEN'
     };

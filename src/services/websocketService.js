@@ -18,7 +18,14 @@ class WebSocketService {
     this.clients = new Map();
     this.broadcasters = new Map();
     this.setupHandlers();
-    this.startDataBroadcaster();
+    // Start mock broadcaster only when explicitly enabled. In production or when using
+    // the simulator, prefer broadcasting from the sensor controller so clients only
+    // receive simulated data.
+    if (process.env.ENABLE_WS_MOCK === 'true') {
+      this.startDataBroadcaster();
+    } else {
+      console.log('[WEBSOCKET] Mock broadcaster disabled (ENABLE_WS_MOCK!=true)');
+    }
   }
 
   /**

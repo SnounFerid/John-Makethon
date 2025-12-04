@@ -110,7 +110,9 @@ export const leakDetectionAPI = {
   // Control valve
   controlValve: (action) => {
     console.log('[LEAK DETECTION API] Controlling valve', { action });
-    return axiosInstance.post('/valve-control', { action });
+    // backend expects `operation` key (OPEN or CLOSE) in uppercase
+    const op = typeof action === 'string' ? action.toUpperCase() : action;
+    return axiosInstance.post('/valve-control', { operation: op });
   },
 
   // Get valve status

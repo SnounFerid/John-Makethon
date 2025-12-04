@@ -100,9 +100,38 @@ const getLeakPredictions = asyncHandler(async (req, res) => {
       valve_state: reading.valve_state
     }));
 
+    // Try to load trained model metrics if available
+    const fs = require('fs');
+    const path = require('path');
+    const modelFile = path.join(__dirname, '..', 'models', 'custom_trained_model.json');
+    let modelSummary = null;
+    try {
+      if (fs.existsSync(modelFile)) {
+        const raw = fs.readFileSync(modelFile, 'utf8');
+        const parsed = JSON.parse(raw);
+        const m = parsed.metrics || {};
+        const cm = m.confusionMatrix || {};
+        const total = (cm.truePositives || 0) + (cm.falsePositives || 0) + (cm.trueNegatives || 0) + (cm.falseNegatives || 0);
+        modelSummary = {
+          algorithm: parsed.algorithm || 'Isolation Forest',
+          trainingSamples: parsed.trainingSamples || total || parsed.sampleSize || 0,
+          accuracy: m.accuracy || 0,
+          precision: m.precision || 0,
+          recall: m.recall || 0,
+          f1Score: m.f1Score || 0,
+          confusionMatrix: cm
+        };
+      }
+    } catch (err) {
+      console.warn('Could not read model summary:', err.message || err);
+    }
+
     res.json({
       success: true,
-      data: predictions.reverse(), // Oldest first for chronological view
+      data: {
+        detections: predictions.reverse(), // Oldest first for chronological view
+        modelSummary
+      },
       modelVersion: model.modelVersion
     });
   } catch (error) {
@@ -212,17 +241,21 @@ const getValveHistory = asyncHandler(async (req, res) => {
       [parseInt(limit)]
     );
 
-    res.json({
-      success: true,
-      data: history.map(record => ({
+      // Normalize records to the shape the frontend expects (action, timestamp, status, success, details)
+      const normalized = history.map(record => ({
         id: record.id,
-        operation: record.operation,
+        action: record.operation || record.action,
         timestamp: record.timestamp,
-        reason: record.reason,
         status: record.status,
+        success: String(record.status || '').toUpperCase() === 'SUCCESS',
+        details: record.reason || record.details || null,
         createdAt: record.created_at
-      }))
-    });
+      }));
+
+      res.json({
+        success: true,
+        data: normalized
+      });
   } catch (error) {
     throw new AppError('Failed to retrieve valve history', 500);
   }
@@ -235,3 +268,6 @@ module.exports = {
   getValveStatus,
   getValveHistory
 };
+
+// Also export valveState for other modules (sensor controller) to check current valve position
+module.exports.valveState = valveState;

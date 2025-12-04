@@ -187,6 +187,13 @@ class DataPreparationService {
 
     const allData = [];
 
+    // Safe appender: push items one-by-one to avoid creating a huge argument list
+    const appendArraySafely = (target, source) => {
+      for (let i = 0; i < source.length; i++) {
+        target.push(source[i]);
+      }
+    };
+
     // Load each dataset (update paths to your actual files)
     try {
       // NAB Data
@@ -194,7 +201,8 @@ class DataPreparationService {
         const nabData = await this.loadNABData(
           path.join(this.trainingDataPath, 'nab_data/realKnownCause/ambient_temperature_system_failure.csv')
         );
-        allData.push(...nabData);
+        // Append safely to avoid call-stack or argument-list issues
+        appendArraySafely(allData, nabData);
       }
 
       // Maintenance Data
@@ -202,7 +210,8 @@ class DataPreparationService {
         const maintenanceData = await this.loadMaintenanceData(
           path.join(this.trainingDataPath, 'maintenance_data/predictive_maintenance.csv')
         );
-        allData.push(...maintenanceData);
+        // Append safely to avoid call-stack or argument-list issues
+        appendArraySafely(allData, maintenanceData);
       }
 
       // Pump Sensor Data
@@ -210,7 +219,8 @@ class DataPreparationService {
         const pumpData = await this.loadPumpSensorData(
           path.join(this.trainingDataPath, 'pump_sensor_data/sensor.csv')
         );
-        allData.push(...pumpData);
+        // Append safely to avoid call-stack or argument-list issues
+        appendArraySafely(allData, pumpData);
       }
 
       // Water Quality Data
@@ -218,7 +228,8 @@ class DataPreparationService {
         const waterData = await this.loadWaterQualityData(
           path.join(this.trainingDataPath, 'water_quality/water_potability.csv')
         );
-        allData.push(...waterData);
+        // Append safely to avoid call-stack or argument-list issues
+        appendArraySafely(allData, waterData);
       }
 
       console.log('\n' + '═'.repeat(80));
@@ -231,14 +242,63 @@ class DataPreparationService {
       console.log(`  Normal samples: ${normalCount} (${(normalCount/allData.length*100).toFixed(1)}%)`);
       console.log(`  Anomaly samples: ${anomalyCount} (${(anomalyCount/allData.length*100).toFixed(1)}%)`);
 
+      // ===== CLASS BALANCING =====
+      // Downsample normal data to ~2x anomaly count for better discrimination
+      const normalSamples = allData.filter(d => d.label === 'normal');
+      const anomalySamples = allData.filter(d => d.label === 'anomaly');
+      
+      const targetNormalCount = Math.max(anomalySamples.length * 2, 5000);
+      const downsampledNormal = normalSamples.slice(0, Math.min(targetNormalCount, normalSamples.length));
+      
+      const balancedData = [...downsampledNormal, ...anomalySamples];
+      
+      // Shuffle to mix classes
+      for (let i = balancedData.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [balancedData[i], balancedData[j]] = [balancedData[j], balancedData[i]];
+      }
+      
+      console.log('\n[DATA_PREP] Class Balancing:');
+      console.log(`  Original: ${normalCount} normal, ${anomalyCount} anomaly (ratio: ${(normalCount/anomalyCount).toFixed(1)}:1)`);
+      console.log(`  Downsampled: ${downsampledNormal.length} normal, ${anomalySamples.length} anomaly (ratio: ${(downsampledNormal.length/anomalySamples.length).toFixed(1)}:1)`);
+      console.log(`  Total balanced samples: ${balancedData.length}`);
+      
+      // ===== ADD ENGINEERED FEATURES =====
+      const enhancedData = balancedData.map(sample => {
+        // Existing features are kept; add new engineered features
+        const pressure = sample.pressure || 50;
+        const flow = sample.flow || 10;
+        const pressureRate = sample.pressure_rate_of_change || 0;
+        const flowRate = sample.flow_rate_of_change || 0;
+        const pressureStd = sample.pressure_stddev_60s || 0.5;
+        const flowStd = sample.flow_stddev_60s || 0.3;
+        
+        // New engineered features
+        const pressureFlowRatioVar = Math.abs((pressure / Math.max(1, flow)) - 5); // Deviation from normal ratio
+        const combinedRateOfChange = Math.abs(pressureRate) + Math.abs(flowRate); // Total rate of change
+        const combinedVolatility = pressureStd + flowStd; // Combined std dev
+        const flowPressureInteraction = flow * (pressure / 100); // Interaction term
+        
+        return {
+          ...sample,
+          // Add new features (don't remove existing ones so model can reuse them)
+          pressure_flow_ratio_variance: pressureFlowRatioVar,
+          combined_rate_of_change: combinedRateOfChange,
+          combined_volatility: combinedVolatility,
+          flow_pressure_interaction: flowPressureInteraction
+        };
+      });
+      
+      console.log('[DATA_PREP] ✓ Added engineered features: pressure_flow_ratio_variance, combined_rate_of_change, combined_volatility, flow_pressure_interaction');
+
       // Save processed data
       const outputFile = path.join(this.outputPath, 'combined_training_data.json');
-      fs.writeFileSync(outputFile, JSON.stringify(allData, null, 2));
+      fs.writeFileSync(outputFile, JSON.stringify(enhancedData, null, 2));
       
       console.log(`\n✓ Data saved to: ${outputFile}`);
       console.log('═'.repeat(80) + '\n');
 
-      return allData;
+      return enhancedData;
 
     } catch (error) {
       console.error('[DATA_PREP] Error:', error.message);

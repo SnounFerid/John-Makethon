@@ -288,35 +288,45 @@ const AIInsights = () => {
 
       {/* Model Information */}
       {predictions && (
-        <div className="model-info-section">
-          <h2>ML Model Performance</h2>
-          <div className="model-info-grid">
-            <div className="info-box">
-              <p className="info-label">Algorithm</p>
-              <p className="info-value">{predictions.algorithm || 'Isolation Forest'}</p>
+        (() => {
+          const model = predictions.modelSummary || predictions;
+          const normalizePct = (v) => {
+            if (typeof v !== 'number') return 0;
+            return v > 1 ? v : v * 100;
+          };
+
+          return (
+            <div className="model-info-section">
+              <h2>ML Model Performance</h2>
+              <div className="model-info-grid">
+                <div className="info-box">
+                  <p className="info-label">Algorithm</p>
+                  <p className="info-value">{model.algorithm || 'Isolation Forest'}</p>
+                </div>
+                <div className="info-box">
+                  <p className="info-label">Training Samples</p>
+                  <p className="info-value">{model.trainingSamples || 0}</p>
+                </div>
+                <div className="info-box">
+                  <p className="info-label">Model Accuracy</p>
+                  <p className="info-value">{normalizePct(model.accuracy).toFixed(2)}%</p>
+                </div>
+                <div className="info-box">
+                  <p className="info-label">Precision</p>
+                  <p className="info-value">{normalizePct(model.precision).toFixed(2)}%</p>
+                </div>
+                <div className="info-box">
+                  <p className="info-label">Recall</p>
+                  <p className="info-value">{normalizePct(model.recall).toFixed(2)}%</p>
+                </div>
+                <div className="info-box">
+                  <p className="info-label">F1 Score</p>
+                  <p className="info-value">{(model.f1Score || 0).toFixed(2)}</p>
+                </div>
+              </div>
             </div>
-            <div className="info-box">
-              <p className="info-label">Training Samples</p>
-              <p className="info-value">{predictions.trainingSamples || 0}</p>
-            </div>
-            <div className="info-box">
-              <p className="info-label">Model Accuracy</p>
-              <p className="info-value">{(predictions.accuracy * 100 || 0).toFixed(2)}%</p>
-            </div>
-            <div className="info-box">
-              <p className="info-label">Precision</p>
-              <p className="info-value">{(predictions.precision * 100 || 0).toFixed(2)}%</p>
-            </div>
-            <div className="info-box">
-              <p className="info-label">Recall</p>
-              <p className="info-value">{(predictions.recall * 100 || 0).toFixed(2)}%</p>
-            </div>
-            <div className="info-box">
-              <p className="info-label">F1 Score</p>
-              <p className="info-value">{(predictions.f1Score || 0).toFixed(3)}</p>
-            </div>
-          </div>
-        </div>
+          );
+        })()
       )}
 
       {/* Top Anomalies */}

@@ -7,25 +7,45 @@ const {
   formatSensorData,
   detectLeak 
 } = require('../utils/helpers');
+const { integratedEngine } = require('../utils/integratedEngine');
+const { valveState } = require('./leakDetectionController');
 
 /**
  * POST /api/sensor-data
  * Add new sensor reading
  */
 const addSensorData = asyncHandler(async (req, res) => {
-  const { pressure, flow, valve_state } = req.body;
+  const { pressure, flow, valve_state, temperature, conductivity, location } = req.body;
 
-  // Validate input
+  // Validate input and include optional fields
   const sensorData = {
     pressure: parseFloat(pressure),
     flow: parseFloat(flow),
     leak_status: false,
-    valve_state: valve_state || 'CLOSED'
+    valve_state: valve_state || 'CLOSED',
+    temperature: typeof temperature !== 'undefined' ? parseFloat(temperature) : null,
+    conductivity: typeof conductivity !== 'undefined' ? parseFloat(conductivity) : null,
+    location: location || null
   };
 
   const validation = validateSensorData(sensorData);
   if (!validation.isValid) {
     throw new AppError(`Validation failed: ${validation.errors.join(', ')}`, 400);
+  }
+
+  // If valve is closed, ignore incoming readings because there's no flow
+  try {
+    if (valveState && String(valveState.state).toUpperCase() === 'CLOSED') {
+      // Do not persist or broadcast readings while valve is closed
+      return res.status(200).json({
+        success: false,
+        message: 'Valve is closed; reading ignored',
+        data: null
+      });
+    }
+  } catch (e) {
+    // If valve state cannot be determined, proceed normally
+    console.warn('[SENSOR] Could not read valve state, proceeding to save reading', e.message || e);
   }
 
   // Check for leak
@@ -36,21 +56,71 @@ const addSensorData = asyncHandler(async (req, res) => {
 
   try {
     await dbRun(
-      `INSERT INTO sensor_data (id, timestamp, pressure, flow, leak_status, valve_state) 
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [id, timestamp, sensorData.pressure, sensorData.flow, leakStatus ? 1 : 0, sensorData.valve_state]
+      `INSERT INTO sensor_data (id, timestamp, pressure, flow, leak_status, valve_state, temperature, conductivity, location) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        timestamp,
+        sensorData.pressure,
+        sensorData.flow,
+        leakStatus ? 1 : 0,
+        sensorData.valve_state,
+        sensorData.temperature,
+        sensorData.conductivity,
+        sensorData.location
+      ]
     );
+
+    // Include optional fields in response payload so clients receive temperature etc.
+    const responsePayload = {
+      id,
+      timestamp,
+      pressure: sensorData.pressure,
+      flow: sensorData.flow,
+      leak_status: leakStatus,
+      valve_state: sensorData.valve_state,
+      temperature: sensorData.temperature,
+      conductivity: sensorData.conductivity,
+      location: sensorData.location
+    };
+
+    // Broadcast the new sensor update to connected WebSocket clients (if available)
+    try {
+      if (req && req.app && req.app.wsService) {
+        req.app.wsService.broadcastToAll('sensor:update', responsePayload);
+
+        // If a leak was detected, also broadcast an alert
+        if (leakStatus) {
+          const alert = {
+            id: generateId(),
+            severity: sensorData.pressure < 0.5 ? 'CRITICAL' : 'HIGH',
+            message: 'Possible leak detected based on incoming sensor reading',
+            data: responsePayload,
+            timestamp
+          };
+          req.app.wsService.broadcastAlert(alert);
+        }
+        // Also process the reading through the integrated detection engine so historical
+        // detections and AI insights populate automatically.
+        try {
+          integratedEngine.processReading({
+            pressure: sensorData.pressure,
+            flow: sensorData.flow,
+            valve_state: sensorData.valve_state,
+            temperature: sensorData.temperature,
+            timestamp
+          });
+        } catch (engErr) {
+          console.error('[SENSOR] integratedEngine.processReading failed:', engErr.message || engErr);
+        }
+      }
+    } catch (bErr) {
+      console.error('Failed to broadcast sensor update/alert over WebSocket:', bErr);
+    }
 
     res.status(201).json({
       success: true,
-      data: {
-        id,
-        timestamp,
-        pressure: sensorData.pressure,
-        flow: sensorData.flow,
-        leak_status: leakStatus,
-        valve_state: sensorData.valve_state
-      },
+      data: responsePayload,
       message: 'Sensor data recorded successfully'
     });
   } catch (error) {

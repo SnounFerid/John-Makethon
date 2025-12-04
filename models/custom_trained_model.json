@@ -1,0 +1,73 @@
+{
+  "timestamp": 1764867920362,
+  "isTrained": true,
+  "numTrees": 500,
+  "sampleSize": 1024,
+  "features": [
+    "timestamp",
+    "pressure",
+    "flow",
+    "pressure_rate_of_change",
+    "flow_rate_of_change",
+    "pressure_ma_30s",
+    "flow_ma_30s",
+    "pressure_stddev_60s",
+    "flow_stddev_60s",
+    "pressure_flow_ratio",
+    "hour_of_day",
+    "is_weekend",
+    "pressure_flow_ratio_variance",
+    "combined_rate_of_change",
+    "combined_volatility",
+    "flow_pressure_interaction"
+  ],
+  "featureMeans": {
+    "timestamp": 1578579137731.2656,
+    "pressure": 32.23361070326145,
+    "flow": 72.02519851209148,
+    "pressure_rate_of_change": -0.03115900802231515,
+    "flow_rate_of_change": 0,
+    "pressure_ma_30s": 32.23361070326145,
+    "flow_ma_30s": 72.02519851209148,
+    "pressure_stddev_60s": 0.6287784004806429,
+    "flow_stddev_60s": 0.2999999999998511,
+    "pressure_flow_ratio": 1.1227618682691327,
+    "hour_of_day": 11.339077044959398,
+    "is_weekend": 0.29825212913448207,
+    "pressure_flow_ratio_variance": 3.9817113566030033,
+    "combined_rate_of_change": 0.19067797217363755,
+    "combined_volatility": 0.9287784004805892,
+    "flow_pressure_interaction": 20.111881397245067
+  },
+  "featureStdDevs": {
+    "timestamp": 95558842871.83452,
+    "pressure": 15.468713574756482,
+    "flow": 33.890603686731716,
+    "pressure_rate_of_change": 0.2433102826103066,
+    "flow_rate_of_change": 0,
+    "pressure_ma_30s": 15.468713574756482,
+    "flow_ma_30s": 33.890603686731716,
+    "pressure_stddev_60s": 0.3683716141125933,
+    "flow_stddev_60s": 1.488809076022335e-13,
+    "pressure_flow_ratio": 2.069890676442179,
+    "hour_of_day": 6.9196932664515,
+    "is_weekend": 0.4574907612194569,
+    "pressure_flow_ratio_variance": 1.271046625375801,
+    "combined_rate_of_change": 0.15431360384812082,
+    "combined_volatility": 0.36837161411260605,
+    "flow_pressure_interaction": 12.427502099610388
+  },
+  "metrics": {
+    "accuracy": 33.08,
+    "precision": 33.08,
+    "recall": 100,
+    "specificity": 0,
+    "f1Score": 49.71,
+    "confusionMatrix": {
+      "truePositives": 3340,
+      "falsePositives": 6758,
+      "trueNegatives": 0,
+      "falseNegatives": 0
+    }
+  }
+}

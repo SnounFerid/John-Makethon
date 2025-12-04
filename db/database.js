@@ -30,6 +30,9 @@ function initializeDatabase() {
       flow REAL NOT NULL,
       leak_status BOOLEAN NOT NULL DEFAULT 0,
       valve_state TEXT NOT NULL DEFAULT 'CLOSED',
+      temperature REAL DEFAULT NULL,
+      conductivity REAL DEFAULT NULL,
+      location TEXT DEFAULT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`,
     (err) => {
@@ -40,6 +43,25 @@ function initializeDatabase() {
       }
     }
   );
+
+  // Attempt to add optional columns for existing databases (no-op if they already exist)
+  db.run(`ALTER TABLE sensor_data ADD COLUMN temperature REAL DEFAULT NULL`, (err) => {
+    if (err && !/duplicate column/i.test(err.message)) {
+      // ignore duplicate column error, log others
+    }
+  });
+
+  db.run(`ALTER TABLE sensor_data ADD COLUMN conductivity REAL DEFAULT NULL`, (err) => {
+    if (err && !/duplicate column/i.test(err.message)) {
+      // ignore duplicate column error
+    }
+  });
+
+  db.run(`ALTER TABLE sensor_data ADD COLUMN location TEXT DEFAULT NULL`, (err) => {
+    if (err && !/duplicate column/i.test(err.message)) {
+      // ignore duplicate column error
+    }
+  });
 
   // Create model_training_logs table for tracking AI model training
   db.run(

@@ -262,7 +262,13 @@ class IsolationForest {
  */
 class MLAnomalyDetector {
   constructor() {
-    this.model = new IsolationForest(100, 256);
+    // Allow overriding defaults with environment variables for easy tuning
+    const defaultNumTrees = 500; // increased capacity (ideal)
+    const defaultSampleSize = 1024; // increased sample size (ideal)
+    const numTrees = parseInt(process.env.ISO_NUM_TREES, 10) || defaultNumTrees;
+    const sampleSize = parseInt(process.env.ISO_SAMPLE_SIZE, 10) || defaultSampleSize;
+
+    this.model = new IsolationForest(numTrees, sampleSize);
     this.performanceMetrics = {
       trainingData: null,
       predictions: [],
@@ -273,6 +279,21 @@ class MLAnomalyDetector {
     };
     this.modelPath = path.join(__dirname, '../models');
     this.createdModelsDir();
+
+    // Load recommended threshold from config if available (written by calibration script)
+    this.recommendedThreshold = 0.5; // default
+    try {
+      const cfgPath = path.join(this.modelPath, 'model_config.json');
+      if (fs.existsSync(cfgPath)) {
+        const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+        if (cfg && typeof cfg.recommendedThreshold === 'number') {
+          this.recommendedThreshold = cfg.recommendedThreshold;
+          console.log(`[ANOMALY_DETECTOR] Loaded recommended threshold: ${this.recommendedThreshold}`);
+        }
+      }
+    } catch (err) {
+      console.warn('[ANOMALY_DETECTOR] Could not read model_config.json:', err.message || err);
+    }
 
     console.log('[ANOMALY_DETECTOR] ML-Based Anomaly Detector initialized');
   }
@@ -306,6 +327,11 @@ class MLAnomalyDetector {
         pressure_flow_ratio: reading.pressure_flow_ratio || 0,
         hour_of_day: reading.hour_of_day || 0,
         is_weekend: reading.is_weekend ? 1 : 0,
+        // Include engineered features if present
+        pressure_flow_ratio_variance: reading.pressure_flow_ratio_variance || 0,
+        combined_rate_of_change: reading.combined_rate_of_change || 0,
+        combined_volatility: reading.combined_volatility || 0,
+        flow_pressure_interaction: reading.flow_pressure_interaction || 0,
         label // 'normal' or 'anomaly'
       };
 
@@ -450,11 +476,14 @@ class MLAnomalyDetector {
 
     const prediction = this.model.predict(sample);
 
+    // Use calibrated threshold (recommendedThreshold) rather than hardcoded 0.5
+    const isAnomaly = prediction.anomalyScore > this.recommendedThreshold;
+
     return {
       anomalyScore: Math.round(prediction.anomalyScore * 10000) / 100, // 0-100%
-      isAnomaly: prediction.isAnomaly,
+      isAnomaly,
       pathLength: Math.round(prediction.pathLength * 100) / 100,
-      confidence: Math.round(Math.abs(prediction.anomalyScore - 0.5) * 2 * 10000) / 100 // Confidence % from 0 to 100
+      confidence: Math.round(Math.abs(prediction.anomalyScore - this.recommendedThreshold) * 2 * 10000) / 100 // Confidence % from 0 to 100
     };
   }
 
@@ -505,13 +534,25 @@ class MLAnomalyDetector {
    * Calculate performance metrics
    */
   calculateMetrics() {
-    const { tp, fp, tn, fn } = this.performanceMetrics;
+    const tp = this.performanceMetrics.truePositives || 0;
+    const fp = this.performanceMetrics.falsePositives || 0;
+    const tn = this.performanceMetrics.trueNegatives || 0;
+    const fn = this.performanceMetrics.falseNegatives || 0;
 
-    const accuracy = (tp + tn) / (tp + fp + tn + fn);
-    const precision = tp / (tp + fp);
-    const recall = tp / (tp + fn);
-    const specificity = tn / (tn + fp);
-    const f1Score = (2 * precision * recall) / (precision + recall);
+    const denom = tp + fp + tn + fn;
+    const accuracy = denom > 0 ? (tp + tn) / denom : 0;
+
+    const precisionDenom = tp + fp;
+    const precision = precisionDenom > 0 ? tp / precisionDenom : 0;
+
+    const recallDenom = tp + fn;
+    const recall = recallDenom > 0 ? tp / recallDenom : 0;
+
+    const specificityDenom = tn + fp;
+    const specificity = specificityDenom > 0 ? tn / specificityDenom : 0;
+
+    const f1Denom = precision + recall;
+    const f1Score = f1Denom > 0 ? (2 * precision * recall) / f1Denom : 0;
 
     return {
       accuracy: Math.round(accuracy * 10000) / 100,

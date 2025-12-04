@@ -1,0 +1,61 @@
+{
+  "timestamp": 1764861339843,
+  "isTrained": true,
+  "numTrees": 100,
+  "sampleSize": 256,
+  "features": [
+    "timestamp",
+    "pressure",
+    "flow",
+    "pressure_rate_of_change",
+    "flow_rate_of_change",
+    "pressure_ma_30s",
+    "flow_ma_30s",
+    "pressure_stddev_60s",
+    "flow_stddev_60s",
+    "pressure_flow_ratio",
+    "hour_of_day",
+    "is_weekend"
+  ],
+  "featureMeans": {
+    "timestamp": 1539672378023.3953,
+    "pressure": 26.181999376688665,
+    "flow": 89.9941568195517,
+    "pressure_rate_of_change": -0.18818413683489588,
+    "flow_rate_of_change": 0,
+    "pressure_ma_30s": 26.181999376688665,
+    "flow_ma_30s": 89.9941568195517,
+    "pressure_stddev_60s": 0.5313314711359403,
+    "flow_stddev_60s": 0.3000000000009091,
+    "pressure_flow_ratio": 0.35474599912684474,
+    "hour_of_day": 11.48282283439286,
+    "is_weekend": 0.2859115135169845
+  },
+  "featureStdDevs": {
+    "timestamp": 49882778042.17183,
+    "pressure": 8.849237820892396,
+    "flow": 19.352426577657248,
+    "pressure_rate_of_change": 0.15750111410387738,
+    "flow_rate_of_change": 0,
+    "pressure_ma_30s": 8.849237820892396,
+    "flow_ma_30s": 19.352426577657248,
+    "pressure_stddev_60s": 0.19623583102283293,
+    "flow_stddev_60s": 9.091061237143094e-13,
+    "pressure_flow_ratio": 1.5154101119654306,
+    "hour_of_day": 6.915776170801278,
+    "is_weekend": 0.45184745208516536
+  },
+  "metrics": {
+    "accuracy": 97.21,
+    "precision": 60.55,
+    "recall": 100,
+    "specificity": 97.09,
+    "f1Score": 75.42,
+    "confusionMatrix": {
+      "truePositives": 1998,
+      "falsePositives": 1302,
+      "trueNegatives": 43420,
+      "falseNegatives": 0
+    }
+  }
+}
