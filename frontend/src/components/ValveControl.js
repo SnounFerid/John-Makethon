@@ -67,7 +67,7 @@ const ValveControl = () => {
   }
 
   const isOpen = valveStatus?.status === 'open';
-  const isConnected = valveStatus?.connected !== false;
+  const valveConnected = valveStatus?.connected !== false;
 
   return (
     <div className="valve-control-container">
@@ -121,8 +121,8 @@ const ValveControl = () => {
               <p className={`valve-status-value ${isOpen ? 'open' : 'closed'}`}>
                 {isOpen ? 'OPEN' : 'CLOSED'}
               </p>
-              <p className={`valve-connection ${isConnected ? 'connected' : 'disconnected'}`}>
-                {isConnected ? '✓ Connected' : '✗ Disconnected'}
+              <p className={`valve-connection ${valveConnected ? 'connected' : 'disconnected'}`}>
+                {valveConnected ? '✓ Connected' : '✗ Disconnected'}
               </p>
             </div>
           </div>

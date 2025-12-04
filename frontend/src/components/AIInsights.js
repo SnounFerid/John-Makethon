@@ -5,7 +5,7 @@ import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
-import { FiBrain, FiTrendingUp, FiZap } from 'react-icons/fi';
+import { FiCpu, FiTrendingUp, FiZap } from 'react-icons/fi';
 import '../styles/AIInsights.css';
 
 const AIInsights = () => {
@@ -96,7 +96,7 @@ const AIInsights = () => {
     <div className="ai-insights-container">
       <div className="ai-header">
         <div className="header-title">
-          <FiBrain className="header-icon" />
+          <FiCpu className="header-icon" />
           <div>
             <h1>AI Insights & Predictions</h1>
             <p>Machine learning-based anomaly detection and leak probability analysis</p>
@@ -144,8 +144,8 @@ const AIInsights = () => {
       {/* Key Metrics */}
       <div className="metrics-grid">
         <div className="metric-card">
-          <div className="metric-icon">
-            <FiBrain />
+            <div className="metric-icon">
+            <FiCpu />
           </div>
           <div className="metric-content">
             <p className="metric-label">Avg Anomaly Score</p>

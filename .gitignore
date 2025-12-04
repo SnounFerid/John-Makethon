@@ -10,3 +10,4 @@ db/*.db
 *.swp
 .vscode/settings.json
 venv/
+backend/training_data/

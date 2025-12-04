@@ -1,4 +1,4 @@
-const { asyncHandler } = require('../middleware/errorHandler');
+const { asyncHandler } = require('../../middleware/errorHandler');
 
 /**
  * WebSocket Controller

@@ -14,7 +14,7 @@ import {
   FiTrendingUp,
   FiAlertTriangle,
   FiPower,
-  FiBrain,
+  FiCpu,
   FiTool,
 } from 'react-icons/fi';
 import './styles/App.css';
@@ -56,7 +56,7 @@ const Navigation = () => {
           </li>
           <li>
             <Link to="/ai-insights" onClick={() => setIsOpen(false)}>
-              <FiBrain /> AI Insights
+              <FiCpu /> AI Insights
             </Link>
           </li>
           <li>

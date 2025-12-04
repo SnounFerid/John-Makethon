@@ -5,21 +5,22 @@ const cors = require('cors');
 const path = require('path');
 const http = require('http');
 
-// Import middleware
-const { requestLogger } = require('./middleware/logger');
-const { errorHandler, asyncHandler } = require('./middleware/errorHandler');
+// Import middleware (middleware lives at repository root)
+const { requestLogger } = require('../middleware/logger');
+const { errorHandler, asyncHandler } = require('../middleware/errorHandler');
 
-// Import database initialization
-require('./db/database');
+// Import database initialization (db is at repository root)
+require('../db/database');
 
 // Import WebSocket service
 const WebSocketService = require('./services/websocketService');
 
-// Import routes
-const sensorRoutes = require('./routes/sensorRoutes');
-const mlRoutes = require('./routes/mlRoutes');
-const leakDetectionRoutes = require('./routes/leakDetectionRoutes');
-const integratedRoutes = require('./routes/integratedRoutes');
+// Import routes (top-level `routes/` folder)
+const sensorRoutes = require('../routes/sensorRoutes');
+const mlRoutes = require('../routes/mlRoutes');
+const leakDetectionRoutes = require('../routes/leakDetectionRoutes');
+const integratedRoutes = require('../routes/integratedRoutes');
+// `websocket` REST endpoints live under `src/routes/websocket.js`
 const websocketRoutes = require('./routes/websocket');
 
 // Initialize Express app
@@ -116,8 +117,8 @@ app.use('/api/leak-detection', leakDetectionRoutes);
 app.use('/api/detection', integratedRoutes);
 app.use('/api/websocket', websocketRoutes);
 
-// Valve control endpoint (mounted separately)
-app.post('/api/valve-control', require('./controllers/leakDetectionController').controlValveEndpoint);
+// Valve control endpoint (mounted separately) - controller at repo root `controllers/`
+app.post('/api/valve-control', require('../controllers/leakDetectionController').controlValveEndpoint);
 
 /**
  * ===== ERROR HANDLING =====
@@ -153,7 +154,19 @@ const wsService = new WebSocketService(server);
 // Add WebSocket service to app for use in controllers
 app.wsService = wsService;
 
-const PORT = process.env.PORT || 3000;
+// Handle listen errors (e.g. port already in use) with a friendly message
+server.on('error', (err) => {
+  if (err && err.code === 'EADDRINUSE') {
+    console.error('\nERROR: Port ' + PORT + ' is already in use.\n' +
+      ' - Free the port or run the server with a different port, e.g. ' +
+      '(PowerShell) $env:PORT=3001; npm run dev' + '\n' +
+      '(Unix) PORT=3001 npm run dev'
+    );
+    process.exit(1);
+  }
+  console.error('Server error:', err);
+  process.exit(1);
+});
 
 server.listen(PORT, () => {
   console.log(`
