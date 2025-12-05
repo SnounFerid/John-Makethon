@@ -111,6 +111,25 @@ const AlertManagement = () => {
     return colors[severity] || '#999999';
   };
 
+  const getDisplayProbability = (alert) => {
+    // Prefer explicit probability if > 0, otherwise fall back to embedded detection snapshot
+    const top = typeof alert.probability === 'number' ? alert.probability : null;
+    if (top && top > 0) return `${Math.round(top)}%`;
+
+    const det = alert.detection?.overallProbability;
+    if (typeof det === 'number' && det > 0) return `${Math.round(det)}%`;
+
+    // Fallback: check detection methods for highest probability
+    const methods = Array.isArray(alert.detection?.detectionMethods) ? alert.detection.detectionMethods : [];
+    if (methods.length > 0) {
+      const max = Math.max(...methods.map(m => (typeof m.probability === 'number' ? m.probability : 0)));
+      if (max > 0) return `${Math.round(max)}%`;
+    }
+
+    // final fallback: show N/A to avoid misleading 0%
+    return 'N/A';
+  };
+
   const filteredAlerts = alerts.filter(alert => {
     if (severityFilter === 'all') return true;
     return alert.severity === severityFilter;
@@ -228,15 +247,49 @@ const AlertManagement = () => {
                 </div>
 
                 <div className="alert-content">
-                  <h4>{alert.description}</h4>
+                  <h4>{alert.message || 'Leak Alert'}</h4>
                   <div className="alert-details">
-                    <span>Location: {alert.location || 'Unknown'}</span>
-                    <span>Value: {alert.value}</span>
-                    <span>Threshold: {alert.threshold}</span>
-                    <span>Confidence: {(alert.confidence * 100).toFixed(1)}%</span>
+                    <div className="detail-item">
+                      <span className="label">Location:</span>
+                      <span className="value">{alert.location || 'Unknown'}</span>
+                    </div>
+
+                    <div className="detail-item">
+                      <span className="label">Probability:</span>
+                      <span className="value">{getDisplayProbability(alert)}</span>
+                    </div>
+
+                    <div className="detail-item">
+                      <span className="label">Severity:</span>
+                      <span className="value">{alert.severity || 'Unknown'}</span>
+                    </div>
+
+                    {alert.readings && (
+                      <>
+                        <div className="detail-item">
+                          <span className="label">Pressure:</span>
+                          <span className="value">{alert.readings.pressure !== undefined ? `${alert.readings.pressure} PSI` : 'N/A'}</span>
+                        </div>
+                        <div className="detail-item">
+                          <span className="label">Flow:</span>
+                          <span className="value">{alert.readings.flow !== undefined ? `${alert.readings.flow} L/min` : 'N/A'}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
 
-                  {alert.notificationsSent.length > 0 && (
+                  {alert.recommendedActions && alert.recommendedActions.length > 0 && (
+                    <div className="recommended-actions">
+                      <span className="label">Recommended Actions:</span>
+                      <ul>
+                        {alert.recommendedActions.map((action, idx) => (
+                          <li key={idx}>{action}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {alert.notificationsSent && alert.notificationsSent.length > 0 && (
                     <div className="notifications-sent">
                       <span className="label">Notifications:</span>
                       {alert.notificationsSent.map((notif, idx) => (
@@ -256,7 +309,7 @@ const AlertManagement = () => {
         <div className="modal-overlay" onClick={() => setSelectedAlert(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>{selectedAlert.description}</h3>
+              <h3>{selectedAlert.message || 'Leak Detection Alert'}</h3>
               <button className="close-btn" onClick={() => setSelectedAlert(null)}>×</button>
             </div>
 
@@ -266,58 +319,58 @@ const AlertManagement = () => {
                 <h4>Alert Details</h4>
                 <div className="detail-grid">
                   <div className="detail-item">
-                    <span className="label">ID:</span>
+                    <span className="label">Alert ID:</span>
                     <span className="value">{selectedAlert.id}</span>
                   </div>
                   <div className="detail-item">
-                    <span className="label">Time:</span>
+                    <span className="label">Time Detected:</span>
                     <span className="value">{new Date(selectedAlert.timestamp).toLocaleString()}</span>
                   </div>
                   <div className="detail-item">
                     <span className="label">Severity:</span>
                     <span className="value" style={{ color: getSeverityColor(selectedAlert.severity) }}>
-                      {selectedAlert.severity.toUpperCase()}
+                      {selectedAlert.severity?.toUpperCase() || 'UNKNOWN'}
                     </span>
                   </div>
                   <div className="detail-item">
                     <span className="label">Location:</span>
-                    <span className="value">{selectedAlert.location}</span>
+                    <span className="value">{selectedAlert.location || 'Unknown'}</span>
                   </div>
                   <div className="detail-item">
-                    <span className="label">Detected Value:</span>
-                    <span className="value">{selectedAlert.value}</span>
+                    <span className="label">Leak Probability:</span>
+                    <span className="value" style={{ fontWeight: 'bold', color: '#ff6b6b' }}>
+                      {getDisplayProbability(selectedAlert)}
+                    </span>
                   </div>
-                  <div className="detail-item">
-                    <span className="label">Threshold:</span>
-                    <span className="value">{selectedAlert.threshold}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="label">Confidence:</span>
-                    <span className="value">{(selectedAlert.confidence * 100).toFixed(1)}%</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="label">Type:</span>
-                    <span className="value">{selectedAlert.type}</span>
-                  </div>
+                  {selectedAlert.readings && (
+                    <>
+                      <div className="detail-item">
+                        <span className="label">Pressure:</span>
+                        <span className="value">{selectedAlert.readings.pressure !== undefined ? `${selectedAlert.readings.pressure} PSI` : 'N/A'}</span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="label">Flow Rate:</span>
+                        <span className="value">{selectedAlert.readings.flow !== undefined ? `${selectedAlert.readings.flow} L/min` : 'N/A'}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
-              {/* Valve Closure Info */}
-              {selectedAlert.valveClosureTriggered && (
-                <div className="details-section alert-critical">
-                  <h4>⚠️ Automatic Valve Closure Triggered</h4>
-                  <div className="valve-info">
-                    <p>
-                      Automatic valve closure was triggered at{' '}
-                      {new Date(selectedAlert.valveClosureTime).toLocaleString()}
-                    </p>
-                    <p>This action was taken due to {selectedAlert.severity} severity level detection.</p>
-                  </div>
+              {/* Recommended Actions */}
+              {selectedAlert.recommendedActions && selectedAlert.recommendedActions.length > 0 && (
+                <div className="details-section">
+                  <h4>Recommended Actions</h4>
+                  <ul className="actions-list">
+                    {selectedAlert.recommendedActions.map((action, idx) => (
+                      <li key={idx}>{action}</li>
+                    ))}
+                  </ul>
                 </div>
               )}
 
               {/* Notifications */}
-              {selectedAlert.notificationsSent.length > 0 && (
+              {selectedAlert.notificationsSent && selectedAlert.notificationsSent.length > 0 && (
                 <div className="details-section">
                   <h4>Notifications Sent</h4>
                   <div className="notifications-list">

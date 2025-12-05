@@ -54,14 +54,39 @@ export const DetectionContextProvider = ({ children }) => {
     try {
       console.log('[CONTEXT] Fetching detection status');
       const response = await detectionAPI.getStatus();
-      console.log('[CONTEXT] Detection status:', response.data);
-      setDetectionStatus(response.data);
+      console.log('[CONTEXT] Detection status (raw):', response.data);
+
+      // Normalize the returned payload so components can rely on `leakProbability`
+      const payload = response.data?.data || response.data || {};
+      const systemStatus = payload.systemStatus || {};
+      const patterns = payload.detectionPatterns || {};
+
+      const leakProbability =
+        typeof patterns.averageProbability === 'number'
+          ? patterns.averageProbability
+          : typeof systemStatus.averageProbability === 'number'
+          ? systemStatus.averageProbability
+          : 0;
+
+      const normalized = {
+        status: systemStatus.status || 'UNKNOWN',
+        timestamp: systemStatus.timestamp || Date.now(),
+        systems: systemStatus.systems || {},
+        statistics: systemStatus.statistics || {},
+        leakProbability: Math.round(leakProbability) || 0,
+        recentAlertCount: payload.recentAlertCount || 0,
+        systemHealth: payload.systemHealth || 'UNKNOWN'
+      };
+
+      setDetectionStatus(normalized);
     } catch (err) {
       const errorMsg = err.response?.data?.message || err.message;
       console.error('[CONTEXT] Failed to fetch detection status:', errorMsg);
       setError(errorMsg);
     }
   }, []);
+
+  
 
   // Fetch recent alerts
   const fetchRecentAlerts = useCallback(async (limit = 10) => {
@@ -70,8 +95,29 @@ export const DetectionContextProvider = ({ children }) => {
       const response = await detectionAPI.getRecentAlerts(limit);
       console.log('[CONTEXT] Recent alerts fetched:', response.data);
       // Server returns { success: true, data: alerts, count }
-      setRecentAlerts(response.data.data || response.data || []);
-      setAlertHistory(response.data.data || response.data || []);
+      const raw = response.data.data || response.data || [];
+
+      // Normalize probability for legacy consumers: set `leakProbability` numeric field
+      const normalized = (raw || []).map(a => {
+        const top = typeof a.probability === 'number' ? a.probability : (typeof a.leakProbability === 'number' ? a.leakProbability : null);
+        if (top && top > 0) {
+          return { ...a, leakProbability: Math.round(top) };
+        }
+
+        const det = a.detection?.overallProbability;
+        if (typeof det === 'number' && det > 0) return { ...a, leakProbability: Math.round(det) };
+
+        const methods = Array.isArray(a.detection?.detectionMethods) ? a.detection.detectionMethods : [];
+        if (methods.length > 0) {
+          const max = Math.max(...methods.map(m => (typeof m.probability === 'number' ? m.probability : 0)));
+          return { ...a, leakProbability: Math.round(max || 0) };
+        }
+
+        return { ...a, leakProbability: 0 };
+      });
+
+      setRecentAlerts(normalized);
+      setAlertHistory(normalized);
     } catch (err) {
       const errorMsg = err.response?.data?.message || err.message;
       console.error('[CONTEXT] Failed to fetch recent alerts:', errorMsg);
@@ -226,6 +272,30 @@ export const DetectionContextProvider = ({ children }) => {
     console.log('[CONTEXT] Provider mounted, initializing system');
     initializeSystem();
   }, [initializeSystem]);
+
+  // Refresh key detection data when window/tab regains focus or becomes visible
+  useEffect(() => {
+    const onVisible = () => {
+      console.log('[CONTEXT] Window visible/focused - refreshing detection data');
+      try { fetchDetectionStatus(); } catch (e) { console.warn(e); }
+      try { fetchRecentAlerts(); } catch (e) { console.warn(e); }
+      try { fetchRecentDetections(50); } catch (e) { console.warn(e); }
+      try { fetchPredictions(); } catch (e) { console.warn(e); }
+      try { fetchValveStatus(); } catch (e) { console.warn(e); }
+    };
+
+    const handler = () => {
+      if (!document.hidden) onVisible();
+    };
+
+    window.addEventListener('focus', onVisible);
+    document.addEventListener('visibilitychange', handler);
+
+    return () => {
+      window.removeEventListener('focus', onVisible);
+      document.removeEventListener('visibilitychange', handler);
+    };
+  }, [fetchDetectionStatus, fetchRecentAlerts, fetchRecentDetections, fetchPredictions, fetchValveStatus]);
 
   const value = {
     // State

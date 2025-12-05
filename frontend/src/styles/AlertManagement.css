@@ -244,18 +244,30 @@
 }
 
 .alert-details {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
   margin-bottom: 1rem;
   font-size: 0.95rem;
 }
 
-.alert-details span {
-  color: #666;
+/* Make label/value pairs inline and aligned in list view */
+.alert-details .detail-item {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 0.5rem;
+}
+
+/* Single definition of detail-item for consistency */
+.detail-item {
+  color: #666;
+  line-height: 1.4;
+}
+
+.detail-item strong {
+  color: #333;
+  font-weight: 600;
+  margin-right: 0.5rem;
 }
 
 .notifications-sent {
@@ -390,23 +402,42 @@
   gap: 1rem;
 }
 
-.detail-item {
+.detail-grid .detail-item {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
 }
 
-.detail-item .label {
+.detail-grid .detail-item .label {
   font-weight: 600;
   color: #666;
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  margin: 0;
 }
 
-.detail-item .value {
+.detail-grid .detail-item .value {
   color: #1a1a1a;
   font-size: 0.95rem;
+  margin: 0;
+}
+
+.actions-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.actions-list li {
+  padding: 0.5rem 1rem;
+  background: white;
+  border-left: 3px solid #4CAF50;
+  border-radius: 3px;
+  color: #1a1a1a;
 }
 
 /* Valve Info */

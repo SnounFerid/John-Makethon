@@ -24,6 +24,11 @@ class IntegratedLeakDetectionEngine {
     this.hysteresisConsecutive = parseInt(process.env.HYSTERESIS_CONSECUTIVE, 10) || 3;
     this.mlConsecutiveAnomalies = 0;
     this.maxHistorySize = 10000;
+    // Track active anomalies to prevent duplicate alerts per event
+    this.activeAnomalies = {
+      ruleBasedActive: false,
+      mlBasedActive: false
+    };
 
     console.log('[INTEGRATED_ENGINE] Leak Detection Engine initialized');
     console.log('[INTEGRATED_ENGINE] Available modules:');
@@ -179,23 +184,34 @@ class IntegratedLeakDetectionEngine {
       this.detectionHistory.shift();
     }
 
-    // Generate alerts if needed with hysteresis
+    // Generate alerts if needed with hysteresis and duplicate prevention
     const ruleTriggered = ruleBasedResult && ruleBasedResult.is_leak_detected;
 
     if (ruleTriggered) {
       // Immediate alert when rule-based detection indicates leak
       this.mlConsecutiveAnomalies = 0;
-      this._generateAlert(integratedResult);
+      
+      // Only generate alert if not already active (transition from normal to anomalous)
+      if (!this.activeAnomalies.ruleBasedActive) {
+        this.activeAnomalies.ruleBasedActive = true;
+        this._generateAlert(integratedResult);
+      }
     } else if (mlResult && mlResult.isAnomaly) {
       // Increment ML consecutive anomaly counter and only alert when threshold reached
       this.mlConsecutiveAnomalies++;
 
       if (this.mlConsecutiveAnomalies >= this.hysteresisConsecutive && integratedResult.detection.overallLeakDetected) {
-        this._generateAlert(integratedResult);
+        // Only generate alert if not already active (transition from normal to anomalous)
+        if (!this.activeAnomalies.mlBasedActive) {
+          this.activeAnomalies.mlBasedActive = true;
+          this._generateAlert(integratedResult);
+        }
       }
     } else {
-      // Reset counter on normal reading
+      // Reset counters and anomaly flags on normal reading
       this.mlConsecutiveAnomalies = 0;
+      this.activeAnomalies.ruleBasedActive = false;
+      this.activeAnomalies.mlBasedActive = false;
     }
 
     return integratedResult;
@@ -259,7 +275,7 @@ class IntegratedLeakDetectionEngine {
         pressure_flow_ratio: features.pressure_flow_ratio
       },
       detection: {
-        overallLeakDetected: leakProbability >= 50,
+        overallLeakDetected: leakProbability >= 65,
         overallProbability: Math.round(leakProbability),
         severityLevel,
         confidenceScore: this._calculateConfidence(ruleResult, mlResult),
@@ -295,6 +311,25 @@ class IntegratedLeakDetectionEngine {
   }
 
   /**
+   * Generate random location for proof-of-concept alerts
+   */
+  _generateRandomLocation() {
+    const locations = [
+      'Zone A - Main Distribution',
+      'Zone B - East Wing',
+      'Zone C - West Wing',
+      'Zone D - North Sector',
+      'Zone E - South Sector',
+      'Basement Level 1',
+      'Basement Level 2',
+      'Sub-station 1',
+      'Sub-station 2',
+      'Main Valve Chamber'
+    ];
+    return locations[Math.floor(Math.random() * locations.length)];
+  }
+
+  /**
    * Generate alert for potential leak
    */
   _generateAlert(detectionResult) {
@@ -302,7 +337,24 @@ class IntegratedLeakDetectionEngine {
       id: generateId(),
       timestamp: getCurrentTimestamp(),
       severity: detectionResult.detection.severityLevel,
-      probability: detectionResult.detection.overallProbability,
+      // Ensure probability is available and provide a sensible fallback
+      probability: (function () {
+        const p = detectionResult.detection.overallProbability;
+        if (p && typeof p === 'number' && p > 0) return Math.round(p);
+
+        // Fallback: use the highest method probability if available
+        const methods = detectionResult.detection.detectionMethods || [];
+        let max = 0;
+        methods.forEach(m => {
+          if (m && typeof m.probability === 'number') {
+            max = Math.max(max, m.probability);
+          }
+        });
+        return Math.round(max || 0);
+      })(),
+      // include the detection snapshot so UI can access more details safely
+      detection: detectionResult.detection,
+      location: this._generateRandomLocation(),
       message: this._generateAlertMessage(detectionResult),
       readings: detectionResult.readings,
       recommendedActions: this._generateRecommendedActions(detectionResult)
@@ -324,9 +376,15 @@ class IntegratedLeakDetectionEngine {
       this.alerts.shift();
     }
 
-    console.error(
-      `[INTEGRATED_ENGINE] 🚨 ALERT: ${alert.message} (${alert.probability}% probability)`
-    );
+    // Log alert and the detection result for debugging mapping issues
+    try {
+      console.error(
+        `[INTEGRATED_ENGINE] 🚨 ALERT: ${alert.message} (${alert.probability}% probability) [${alert.location}]`
+      );
+      console.dir({ detectionResultSummary: detectionResult.detection, alert }, { depth: 4 });
+    } catch (e) {
+      console.error('[INTEGRATED_ENGINE] Failed to log alert object', e && e.message);
+    }
 
     return alert;
   }
@@ -462,6 +520,16 @@ class IntegratedLeakDetectionEngine {
   }
 
   /**
+   * Clear active anomalies (call when an alert is resolved to allow a new alert if anomaly resumes)
+   */
+  clearActiveAnomalies() {
+    this.activeAnomalies.ruleBasedActive = false;
+    this.activeAnomalies.mlBasedActive = false;
+    this.mlConsecutiveAnomalies = 0;
+    console.log('[INTEGRATED_ENGINE] Active anomalies cleared');
+  }
+
+  /**
    * Reset engine
    */
   reset() {
@@ -477,6 +545,10 @@ class IntegratedLeakDetectionEngine {
       mlModelReady: false,
       preprocessorReady: true,
       maintenanceReady: false
+    };
+    this.activeAnomalies = {
+      ruleBasedActive: false,
+      mlBasedActive: false
     };
 
     console.log('[INTEGRATED_ENGINE] Engine reset');

@@ -195,7 +195,7 @@ const Dashboard = () => {
           </div>
           <div className="status-content">
             <p className="status-label">Leak Probability</p>
-            <p className="status-value">{detectionStatus?.leakProbability || 0}%</p>
+            <p className="status-value">{typeof detectionStatus?.leakProbability === 'number' ? `${detectionStatus.leakProbability}%` : 'N/A'}</p>
           </div>
         </div>
       </div>

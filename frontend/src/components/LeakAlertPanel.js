@@ -51,6 +51,23 @@ const LeakAlertPanel = () => {
     return <FiCheckCircle className="alert-icon-success" />;
   };
 
+  const getDisplayProbability = (alert) => {
+    // Support both legacy `leakProbability` and new `probability`/detection shape
+    const top = typeof alert.probability === 'number' ? alert.probability : (typeof alert.leakProbability === 'number' ? alert.leakProbability : null);
+    if (top && top > 0) return `${Math.round(top)}%`;
+
+    const det = alert.detection?.overallProbability;
+    if (typeof det === 'number' && det > 0) return `${Math.round(det)}%`;
+
+    const methods = Array.isArray(alert.detection?.detectionMethods) ? alert.detection.detectionMethods : [];
+    if (methods.length > 0) {
+      const max = Math.max(...methods.map(m => (typeof m.probability === 'number' ? m.probability : 0)));
+      if (max > 0) return `${Math.round(max)}%`;
+    }
+
+    return 'N/A';
+  };
+
   if (loading) {
     return <div className="alert-panel-loading">Loading alerts...</div>;
   }
@@ -102,7 +119,7 @@ const LeakAlertPanel = () => {
               <div className="alert-details">
                 <div className="detail-item">
                   <span className="detail-label">Leak Probability:</span>
-                  <span className="detail-value">{latestAlert.leakProbability || 0}%</span>
+                  <span className="detail-value">{getDisplayProbability(latestAlert)}</span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">Location:</span>
@@ -153,7 +170,7 @@ const LeakAlertPanel = () => {
                   <div className="alert-details">
                     <div className="detail-item">
                       <span className="detail-label">Leak Probability:</span>
-                      <span className="detail-value">{alert.leakProbability || 0}%</span>
+                      <span className="detail-value">{getDisplayProbability(alert)}</span>
                     </div>
                     <div className="detail-item">
                       <span className="detail-label">Location:</span>
@@ -212,7 +229,7 @@ const LeakAlertPanel = () => {
                       {alert.status || 'Pending'}
                     </span>
                     <span className="history-probability">
-                      {alert.leakProbability || 0}% probability
+                      {getDisplayProbability(alert)} probability
                     </span>
                   </div>
                 </div>

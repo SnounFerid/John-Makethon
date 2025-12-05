@@ -26,9 +26,9 @@ const readline = require('readline');
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
 const SENSOR_ENDPOINT = `${BACKEND_URL}/api/sensor-data`;
 
-console.log('\n[SIMULATOR-CLI] Starting pipe simulator (proof-of-concept)');
+console.log('\n[SIMULATOR-CLI] Starting pipe simulator - NORMAL CONDITIONS ONLY (proof-of-concept)');
 console.log(`[SIMULATOR-CLI] Backend API: ${SENSOR_ENDPOINT}`);
-console.log("Type 'help' for available commands. Starting simulator in NORMAL scenario (1s interval).\n");
+console.log("Type 'help' for available commands. Simulator runs in NORMAL scenario (1s interval).\n");
 
 let intervalMs = 1000;
 let isPosting = true;

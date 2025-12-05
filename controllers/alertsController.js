@@ -9,6 +9,16 @@ const getActiveAlerts = asyncHandler(async (req, res) => {
   const { count = 100 } = req.query;
   let alerts = integratedEngine.getRecentAlerts(parseInt(count));
   alerts = alerts.filter(a => !a.resolved);
+  // Debug: log first alert object so frontend mapping issues can be diagnosed
+  if (alerts.length > 0) {
+    try {
+      console.log('[ALERTS_CONTROLLER] Returning active alert (sample):');
+      console.dir(alerts[0], { depth: 4 });
+    } catch (e) {
+      console.log('[ALERTS_CONTROLLER] Alert logging failed');
+    }
+  }
+
   res.json({ success: true, alerts, count: alerts.length });
 });
 
@@ -66,6 +76,9 @@ const resolveAlert = asyncHandler(async (req, res) => {
   alerts[idx].resolvedAt = Date.now();
   alerts[idx].resolveNotes = notes;
   if (feedback) alerts[idx].feedback = feedback;
+
+  // Clear active anomalies to allow new alert if anomaly condition resumes
+  integratedEngine.clearActiveAnomalies();
 
   res.json({ success: true, alert: alerts[idx] });
 });
