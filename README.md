@@ -1,3 +1,191 @@
+# 💧 Water Leak Detection — Runbook & Quickstart
+
+Welcome! This repo is a real-time water leak detection demo: ingest sensor telemetry, run rule-based checks and a machine learning detector, raise alerts, and control valves from a React dashboard.
+
+This README is a friendly, copy-paste guide that gets the whole system running (backend, frontend, and simulators), and explains training and calibration steps.
+
+---
+
+## Quick Overview
+- Backend: Node.js + Express (API, ML glue, SQLite DB)
+- Frontend: React app in `frontend/` (dashboard, live updates via WebSocket)
+- ML: Custom IsolationForest in `utils/mlAnomalyDetector.js` with training scripts under `backend/scripts`
+- Simulators: `tools/simulatePipes.js` (normal stream) and `tools/simulateLeak.js` (single scenario runs)
+
+Run this on Windows PowerShell (instructions include copyable commands).
+
+---
+
+## Prerequisites
+- Node.js 16+ installed (https://nodejs.org/)
+- Optional: Git, VS Code
+
+Open PowerShell in the project root (where this README lives).
+
+## 1) Install dependencies (one-time)
+Run these commands from the repo root:
+
+```powershell
+# Install root dependencies
+npm install
+
+# Install frontend deps
+cd frontend
+npm install
+cd ..
+```
+
+If `npm` scripts fail on PowerShell (execution policy), use `npm.cmd` instead (e.g. `npm.cmd run dev`).
+
+## 2) Environment variables (optional, tuning)
+You can tune the ML and hysteresis behavior with environment variables. These are optional — defaults are safe for development.
+
+- `ISO_NUM_TREES` — number of isolation trees (default 500)
+- `ISO_SAMPLE_SIZE` — sample size per tree (default 1024)
+- `HYSTERESIS_CONSECUTIVE` — N consecutive ML anomalies required to emit an ML-only alert (default 3)
+- `PORT` — backend port (default 3000)
+
+Example (PowerShell):
+
+```powershell
+$env:ISO_NUM_TREES=500; $env:ISO_SAMPLE_SIZE=1024; $env:HYSTERESIS_CONSECUTIVE=3; $env:PORT=3000
+```
+
+## 3) Start the backend
+Open a new PowerShell window in the repo root and run either:
+
+Simple (recommended):
+
+```powershell
+node src/index.js
+```
+
+Development (auto-reload if configured):
+
+```powershell
+npm run dev
+```
+
+When the server starts you should see:
+
+- API server listening (port printed)
+- WebSocket endpoint enabled
+- SQLite database connected (`./db/sensor_data.db`)
+
+## 4) Start the frontend dashboard
+In a separate PowerShell window:
+
+```powershell
+cd frontend
+npm start
+```
+
+By default the frontend runs on port `3001` (this project pins the dev server to 3001). Open the dashboard at:
+
+http://localhost:3001
+
+The dashboard shows live telemetry and an Alerts panel.
+
+## 5) Simulation — generate live sensor data
+There are two simulator scripts in `tools/`:
+
+- `tools/simulatePipes.js` — continuous normal-only stream (use for demo / baseline)
+- `tools/simulateLeak.js` — run a focused leak scenario (minor / major / burst)
+
+Examples (run from repo root):
+
+Run normal stream (long-running):
+
+```powershell
+node tools/simulatePipes.js
+```
+
+Run a short minor leak (10 samples, 200ms interval):
+
+```powershell
+node tools/simulateLeak.js minor 10 200
+```
+
+Run a major leak for 30 samples at 1s intervals:
+
+```powershell
+node tools/simulateLeak.js major 30 1000
+```
+
+Run a high-volume pipe burst (stress test):
+
+```powershell
+node tools/simulateLeak.js burst 100 200
+```
+
+Notes:
+- `simulateLeak.js` posts to `http://localhost:3000/api/sensor-data` by default (set `BACKEND_URL` env var to change)
+- If you want to trigger alerts reliably, use `major` or `burst` scenarios (these create larger pressure drops and flow spikes)
+
+## 6) Train & calibrate the ML model
+Two-step scripts are available to prepare data, train, and calibrate a recommended threshold.
+
+Prepare data (converts dataset CSVs to processed JSON and adds engineered features):
+
+```powershell
+node backend/scripts/prepareTrainingData.js
+```
+
+Train the model (IsolationForest) and save it to `backend/models/custom_trained_model.json`:
+
+```powershell
+node backend/scripts/trainModel.js
+```
+
+Optional: calibrate thresholds using processed test data (writes `models/model_config.json`):
+
+```powershell
+node tools/calibrateThreshold.js custom_trained_model.json
+```
+
+If you prefer an API-driven flow, start the backend and call the training endpoint (example):
+
+```powershell
+curl -X POST http://localhost:3000/api/train-model -H "Content-Type: application/json" -d '{ "source": "prepared" }'
+```
+
+## 7) How to trigger an alert manually (fast path)
+If your frontend or simulator doesn't produce an alert, try these steps to force detection:
+
+1. Start backend and frontend.
+2. Use a strong leak scenario:
+
+```powershell
+node tools/simulateLeak.js major 30 500
+```
+
+3. If still no alert, you can temporarily increase ML weight in `utils/integratedEngine.js` (quick test):
+
+- Open `utils/integratedEngine.js` and find the ML incorporation line; increase ML weight (e.g., from `0.6` to `0.9`) or lower the combined threshold in `_combineDetectionResults` logic.
+- Restart the backend and re-run the `major` scenario.
+
+4. For a robust fix, retrain the model using the `prepareTrainingData.js` improvements (class-balancing and engineered features are already applied in the scripts) and run `trainModel.js`.
+
+## 8) Alert lifecycle and UI
+- Alerts are exposed at `/api/alerts` with endpoints for active, history, acknowledge and resolve.
+- Alerts are currently kept in-memory for fast iteration (you can enable DB persistence later by adding an `alerts` table and persisting from `utils/integratedEngine.js`).
+
+## 9) Troubleshooting & tips
+- If the frontend can't connect to WebSocket: ensure backend port and `BACKEND_URL` match, and that port is not blocked by firewall.
+- If `npm start` fails in frontend: check that `node` and `npm` are installed and versions are compatible.
+- If you see many false positives: try retraining (balanced data) or increase `HYSTERESIS_CONSECUTIVE` to reduce transients.
+
+## 10) Handy helper scripts (optional)
+If you'd like, I can add a `run.bat` or `start-dev.ps1` that:
+- sets recommended env vars
+- starts backend and frontend in separate windows
+- launches the normal simulator
+
+Would you like me to add a one-click `run.bat` or a `start-dev.ps1` script? Reply and I'll add it.
+
+---
+
+Thanks for trying this project — tell me which part you'd like automated next (one-click run, persist alerts to DB, tune thresholds, or add CI tests) and I'll implement it.
 # 💧 Water Leak Detection System - Complete Guide
 
 > **A Smart System That Detects Water Leaks Before They Become Disasters**
