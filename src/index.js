@@ -173,7 +173,7 @@ server.on('error', (err) => {
   process.exit(1);
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log(`
 ╔════════════════════════════════════════════════════════════╗
 ║   Water Leak Detection System API Server                   ║
@@ -186,6 +186,18 @@ server.listen(PORT, () => {
 ║   WebSocket Endpoint: ws://localhost:${PORT}${' '.repeat(37 - PORT.toString().length)}║
 ║════════════════════════════════════════════════════════════╝
   `);
+
+  // Initialize the leak detection engine on startup
+  try {
+    const { integratedEngine } = require('../utils/integratedEngine');
+    console.log('\n[STARTUP] Initializing leak detection engine...');
+    integratedEngine.initializeRuleBasedDetection(50, 10);
+    integratedEngine.initializeMLDetection();
+    integratedEngine.initializePredictiveMaintenance();
+    console.log('[STARTUP] ✓ Leak detection engine ready\n');
+  } catch (error) {
+    console.error('[STARTUP] Failed to initialize leak detection engine:', error.message);
+  }
 });
 
 // Graceful shutdown with WebSocket cleanup

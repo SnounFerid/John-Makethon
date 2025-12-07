@@ -12,8 +12,8 @@ const { getCurrentTimestamp } = require('./helpers');
 const CONFIG = {
   CRITICAL_LEAK: {
     name: 'CRITICAL_LEAK',
-    description: 'Sudden pressure drop >15% in <60 seconds',
-    pressure_drop_threshold: 0.15, // 15%
+    description: 'Sudden pressure drop >10% in <60 seconds (improved sensitivity)',
+    pressure_drop_threshold: 0.10, // Lowered from 15% to 10% for better detection
     time_window: 60, // seconds
     base_probability: 85, // base leak probability %
     severity: 'CRITICAL'
@@ -21,8 +21,8 @@ const CONFIG = {
 
   MINOR_LEAK: {
     name: 'MINOR_LEAK',
-    description: 'Gradual pressure drop 5-15% over 5 minutes',
-    pressure_drop_min: 0.05, // 5%
+    description: 'Gradual pressure drop 3-15% over 5 minutes (improved sensitivity)',
+    pressure_drop_min: 0.03, // Lowered from 5% to 3% for better detection
     pressure_drop_max: 0.15, // 15%
     time_window: 300, // 5 minutes in seconds
     base_probability: 50,
@@ -31,17 +31,17 @@ const CONFIG = {
 
   FLOW_PRESSURE_MISMATCH: {
     name: 'FLOW_PRESSURE_MISMATCH',
-    description: 'Flow increases >25% while pressure decreases',
-    flow_increase_threshold: 0.25, // 25%
-    pressure_decrease_threshold: 0.02, // 2% (any decrease)
+    description: 'Flow increases >15% while pressure decreases (improved sensitivity)',
+    flow_increase_threshold: 0.15, // Lowered from 25% to 15% for better detection
+    pressure_decrease_threshold: 0.01, // Lowered from 2% to 1% for better detection
     base_probability: 70,
     severity: 'HIGH'
   },
 
   RATIO_ANOMALY: {
     name: 'RATIO_ANOMALY',
-    description: 'Pressure-to-flow ratio deviates >30% from baseline',
-    ratio_deviation_threshold: 0.30, // 30%
+    description: 'Pressure-to-flow ratio deviates >25% from baseline (improved sensitivity)',
+    ratio_deviation_threshold: 0.25, // Lowered from 30% to 25% for better detection
     base_probability: 45,
     severity: 'MEDIUM'
   },
@@ -358,14 +358,14 @@ class RuleBasedLeakDetector {
     }
 
     if (ruleResults.SPIKE_ANOMALY.triggered) {
-      return SEVERITY_LEVELS.LOW.level;
+      return SEVERITY_LEVELS.MINOR.level;
     }
 
     // Fallback to probability-based severity
     if (probability >= 70) return SEVERITY_LEVELS.CRITICAL.level;
     if (probability >= 50) return SEVERITY_LEVELS.HIGH.level;
     if (probability >= 30) return SEVERITY_LEVELS.MEDIUM.level;
-    if (probability > 0) return SEVERITY_LEVELS.LOW.level;
+    if (probability > 0) return SEVERITY_LEVELS.MINOR.level;
 
     return SEVERITY_LEVELS.NORMAL.level;
   }

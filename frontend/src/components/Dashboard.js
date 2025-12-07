@@ -30,6 +30,7 @@ const Dashboard = () => {
 
   const [displayReading, setDisplayReading] = useState(null);
   const [liveReadings, setLiveReadings] = useState([]);
+  const [liveLeakProbability, setLiveLeakProbability] = useState(0);
 
   // Ensure charts update at least once per minute with latest values
   useEffect(() => {
@@ -122,6 +123,43 @@ const Dashboard = () => {
     }
   }, [latestSensorData, currentReading, isConnected, processSensorReading]);
 
+  // Poll real live detection data every 1 second for real-time probability updates
+  useEffect(() => {
+    let mounted = true;
+    const pollLiveData = async () => {
+      if (!mounted) return;
+      try {
+        // Fetch the latest actual detection result (most recent reading processed)
+        const resp = await detectionAPI.getRecentDetections(1);
+        const payload = resp.data?.data || resp.data || [];
+        if (Array.isArray(payload) && payload.length > 0) {
+          const latestDetection = payload[0];
+          // Update the display reading with real values
+          if (latestDetection.readings) {
+            setDisplayReading({
+              ...latestDetection.readings,
+              timestamp: latestDetection.timestamp
+            });
+          }
+          // Extract and set the real leak probability
+          const probability = latestDetection.detection?.overallProbability || 0;
+          setLiveLeakProbability(probability);
+        }
+        // Also fetch fresh alerts
+        await fetchRecentAlerts(10);
+      } catch (e) {
+        // silently ignore fetch errors
+      }
+    };
+
+    // Poll every 1 second for real-time updates
+    const id = setInterval(pollLiveData, 1000);
+    return () => {
+      mounted = false;
+      clearInterval(id);
+    };
+  }, [fetchRecentAlerts]);
+
   // Update recent detections when WebSocket alerts change or on mount
   useEffect(() => {
     if (fetchRecentDetections) {
@@ -195,7 +233,7 @@ const Dashboard = () => {
           </div>
           <div className="status-content">
             <p className="status-label">Leak Probability</p>
-            <p className="status-value">{typeof detectionStatus?.leakProbability === 'number' ? `${detectionStatus.leakProbability}%` : 'N/A'}</p>
+            <p className="status-value">{liveLeakProbability}%</p>
           </div>
         </div>
       </div>

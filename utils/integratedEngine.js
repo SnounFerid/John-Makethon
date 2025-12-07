@@ -29,6 +29,14 @@ class IntegratedLeakDetectionEngine {
       ruleBasedActive: false,
       mlBasedActive: false
     };
+    // Track last alert probability to trigger new alerts on 20%+ deviation
+    this.lastAlertProbability = 0;
+    // Track last alert severity for reference
+    this.lastAlertSeverity = 'NORMAL';
+    
+    // Smoothing filter: rolling average to reduce probability fluctuation
+    this.probabilityWindow = [];
+    this.smoothingWindow = 15; // Increased from 5 to 15 for much smoother results (~15 seconds)
 
     console.log('[INTEGRATED_ENGINE] Leak Detection Engine initialized');
     console.log('[INTEGRATED_ENGINE] Available modules:');
@@ -59,9 +67,19 @@ class IntegratedLeakDetectionEngine {
     if (trainingData) {
       mlDetector.train(trainingData);
     } else {
-      // Use synthetic data if none provided
-      const syntheticData = mlDetector.createSyntheticTrainingData();
-      mlDetector.train(syntheticData);
+      // PRIORITY 1: Try to load real trained model first
+      console.log('[INTEGRATED_ENGINE] Attempting to load real trained model...');
+      const realModelLoaded = mlDetector.loadModel('real_data_trained_model_small.json');
+      
+      if (realModelLoaded) {
+        console.log('[INTEGRATED_ENGINE] ✓ Real trained model loaded successfully');
+      } else {
+        // PRIORITY 2: Fallback to synthetic data if real model not available
+        console.warn('[INTEGRATED_ENGINE] Real model not found, training synthetic model...');
+        const syntheticData = mlDetector.createSyntheticTrainingData();
+        mlDetector.train(syntheticData.combined);
+        console.log('[INTEGRATED_ENGINE] ✓ Synthetic model trained as fallback');
+      }
     }
 
     this.systemStatus.mlModelReady = mlDetector.model.isTrained;
@@ -183,35 +201,78 @@ class IntegratedLeakDetectionEngine {
     if (this.detectionHistory.length > this.maxHistorySize) {
       this.detectionHistory.shift();
     }
-
-    // Generate alerts if needed with hysteresis and duplicate prevention
-    const ruleTriggered = ruleBasedResult && ruleBasedResult.is_leak_detected;
-
-    if (ruleTriggered) {
-      // Immediate alert when rule-based detection indicates leak
-      this.mlConsecutiveAnomalies = 0;
-      
-      // Only generate alert if not already active (transition from normal to anomalous)
-      if (!this.activeAnomalies.ruleBasedActive) {
-        this.activeAnomalies.ruleBasedActive = true;
-        this._generateAlert(integratedResult);
+    
+    // IMPROVEMENT 1: Apply smoothing filter to reduce probability fluctuation
+    this.probabilityWindow.push(integratedResult.detection.overallProbability);
+    if (this.probabilityWindow.length > this.smoothingWindow) {
+      this.probabilityWindow.shift();
+    }
+    
+    // Use smoothed probability if we have enough samples, otherwise use raw
+    let smoothedProbability = integratedResult.detection.overallProbability;
+    if (this.probabilityWindow.length >= 5) {
+      // Exponential weighted moving average: much more weight on recent values
+      // This creates a very smooth curve that follows trends
+      const alpha = 0.7; // Higher alpha = more weight on recent values
+      let ewma = this.probabilityWindow[0];
+      for (let i = 1; i < this.probabilityWindow.length; i++) {
+        ewma = alpha * this.probabilityWindow[i] + (1 - alpha) * ewma;
       }
-    } else if (mlResult && mlResult.isAnomaly) {
-      // Increment ML consecutive anomaly counter and only alert when threshold reached
-      this.mlConsecutiveAnomalies++;
-
-      if (this.mlConsecutiveAnomalies >= this.hysteresisConsecutive && integratedResult.detection.overallLeakDetected) {
-        // Only generate alert if not already active (transition from normal to anomalous)
-        if (!this.activeAnomalies.mlBasedActive) {
-          this.activeAnomalies.mlBasedActive = true;
-          this._generateAlert(integratedResult);
+      smoothedProbability = ewma;
+    }
+    
+    const currentSeverity = integratedResult.detection.severityLevel;
+    
+    // FIXED ALERT LOGIC: Simple rule-based alert triggering
+    // 1. If probability is 0-20%, reset state (no leak)
+    // 2. If probability crosses 20% threshold and is different from last alert by 20%, create alert
+    // 3. Prevent alert spam by checking against history
+    
+    if (smoothedProbability < 15) {
+      // No leak detected - reset state ONLY if last few readings confirm no leak
+      if (this.probabilityWindow.length > 0) {
+        // Check if last 3 readings all below 15%
+        const recentReadings = this.probabilityWindow.slice(-3);
+        const allLowReadings = recentReadings.every(p => p < 15);
+        if (allLowReadings) {
+          this.lastAlertProbability = 0;
+          this.lastAlertSeverity = 'NORMAL';
+          this.mlConsecutiveAnomalies = 0;
         }
       }
-    } else {
-      // Reset counters and anomaly flags on normal reading
-      this.mlConsecutiveAnomalies = 0;
-      this.activeAnomalies.ruleBasedActive = false;
-      this.activeAnomalies.mlBasedActive = false;
+    } else if (smoothedProbability >= 20) {
+      // Potential leak detected (probability >= 20%)
+      const mostRecentAlertProbability = this.alerts.length > 0 ? this.alerts[this.alerts.length - 1].probability : this.lastAlertProbability;
+      const probabilityDeviation = Math.abs(smoothedProbability - mostRecentAlertProbability);
+      
+      // Check if there's an alert within 15% range to avoid duplicate alerts
+      let hasAlertWithin15Percent = false;
+      if (this.alerts.length > 1) {
+        for (let i = 0; i < this.alerts.length - 1; i++) {
+          const alertProbability = this.alerts[i].probability;
+          const rangeDiff = Math.abs(smoothedProbability - alertProbability);
+          if (rangeDiff <= 15) {
+            hasAlertWithin15Percent = true;
+            break;
+          }
+        }
+      }
+      
+      // Create alert if: 20%+ deviation from last alert AND no alert in 15% range exists
+      const shouldAlert = probabilityDeviation >= 20 && !hasAlertWithin15Percent;
+      
+      if (shouldAlert) {
+        // Update the smoothed probability in integratedResult before alert generation
+        integratedResult.detection.overallProbability = smoothedProbability;
+        this.lastAlertProbability = smoothedProbability;
+        this._generateAlert(integratedResult);
+        // Update alert with smoothed probability
+        if (this.alerts.length > 0) {
+          const lastAlert = this.alerts[this.alerts.length - 1];
+          lastAlert.probability = Math.round(smoothedProbability);
+          lastAlert.smoothed = true;
+        }
+      }
     }
 
     return integratedResult;
@@ -227,7 +288,7 @@ class IntegratedLeakDetectionEngine {
 
     // Incorporate rule-based result
     if (ruleResult) {
-      leakProbability += ruleResult.leak_probability * 0.4; // 40% weight
+      leakProbability += ruleResult.leak_probability * 0.3; // 30% weight for rule-based
       detectionMethods.push({
         method: 'rule_based',
         probability: ruleResult.leak_probability,
@@ -241,12 +302,14 @@ class IntegratedLeakDetectionEngine {
       }
     }
 
-    // Incorporate ML result
+    // Incorporate ML result - use higher weight since ML is more reliable for anomalies
     if (mlResult) {
-      leakProbability += mlResult.anomalyScore * 0.6; // 60% weight
+      // anomalyScore is 0-1, convert to 0-100 for probability
+      const mlProbability = mlResult.anomalyScore * 100;
+      leakProbability += mlProbability * 0.7; // 70% weight for ML-based (higher weight)
       detectionMethods.push({
         method: 'ml_anomaly',
-        probability: mlResult.anomalyScore,
+        probability: mlProbability,
         confidence: mlResult.confidence
       });
 
@@ -255,8 +318,28 @@ class IntegratedLeakDetectionEngine {
       }
     }
 
+    // IMPROVED: If neither detector found a leak, probability should drop to 0
+    if (!ruleResult || ruleResult.leak_probability === 0) {
+      if (!mlResult || !mlResult.isAnomaly) {
+        leakProbability = 0;
+      }
+    }
+
     // Normalize probability
-    leakProbability = Math.min(100, leakProbability);
+    leakProbability = Math.min(100, Math.max(0, leakProbability));
+
+    // Recalculate severity based on final probability (realistic thresholds)
+    if (leakProbability >= 80) {
+      severityLevel = 'CRITICAL';
+    } else if (leakProbability >= 65) {
+      severityLevel = 'HIGH';
+    } else if (leakProbability >= 50) {
+      severityLevel = 'MEDIUM';
+    } else if (leakProbability >= 35) {
+      severityLevel = 'LOW';
+    } else {
+      severityLevel = 'NORMAL';
+    }
 
     return {
       id,
@@ -396,15 +479,17 @@ class IntegratedLeakDetectionEngine {
     const probability = detectionResult.detection.overallProbability;
     const severity = detectionResult.detection.severityLevel;
 
-    if (probability >= 80 && severity === 'CRITICAL') {
-      return 'CRITICAL: Potential major leak detected. Immediate action required.';
-    } else if (probability >= 60) {
-      return 'HIGH: Strong indication of leak. Recommend immediate inspection.';
-    } else if (probability >= 50) {
-      return 'MEDIUM: Possible leak detected. Schedule inspection soon.';
+    if (severity === 'CRITICAL' || probability >= 80) {
+      return `CRITICAL (${probability}%): Major leak likely detected. Immediate action required. Emergency isolation recommended.`;
+    } else if (severity === 'HIGH' || probability >= 65) {
+      return `HIGH (${probability}%): Strong indication of leak. Immediate inspection and monitoring recommended.`;
+    } else if (severity === 'MEDIUM' || probability >= 50) {
+      return `MEDIUM (${probability}%): Possible leak detected. Schedule inspection and increase monitoring frequency.`;
+    } else if (severity === 'LOW' || probability >= 35) {
+      return `LOW (${probability}%): Minor anomaly detected. Monitor system closely for changes.`;
     }
 
-    return 'LOW: Minor anomaly detected. Monitor closely.';
+    return `NORMAL (${probability}%): Nominal operation. Continue routine monitoring.`;
   }
 
   /**
@@ -550,6 +635,8 @@ class IntegratedLeakDetectionEngine {
       ruleBasedActive: false,
       mlBasedActive: false
     };
+    this.lastAlertProbability = 0;
+    this.lastAlertSeverity = 'NORMAL';
 
     console.log('[INTEGRATED_ENGINE] Engine reset');
   }

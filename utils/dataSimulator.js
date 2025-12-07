@@ -14,9 +14,10 @@ const SCENARIOS = {
   PIPE_BURST: 'PIPE_BURST'
 };
 
-const NORMAL_PRESSURE_RANGE = { min: 40, max: 60 }; // PSI
-const NORMAL_FLOW_RANGE = { min: 5, max: 15 }; // L/min
-const NORMAL_VARIATION = { pressure: 0.5, flow: 0.3 }; // Small variations
+// Updated to match real trained model baseline (50 PSI, 21 L/min average)
+const NORMAL_PRESSURE_RANGE = { min: 40, max: 60 }; // PSI - centered around 50
+const NORMAL_FLOW_RANGE = { min: 15, max: 27 }; // L/min - centered around 21 (was 5-15, too low)
+const NORMAL_VARIATION = { pressure: 2.0, flow: 2.0 }; // Realistic variation matching training data
 
 class DataSimulator {
   constructor() {
@@ -285,23 +286,23 @@ class DataSimulator {
     this.currentScenario = scenario;
     this.simulationStep = 0;
 
-    // Reset baseline values for new scenario
+    // Reset baseline values for new scenario (matching trained model: 50 PSI, 21 L/min avg)
     switch (scenario) {
       case SCENARIOS.NORMAL:
         this.currentPressure = 50;
-        this.currentFlow = 10;
+        this.currentFlow = 21; // Updated from 10 to match training baseline
         break;
       case SCENARIOS.MINOR_LEAK:
         this.currentPressure = 55;
-        this.currentFlow = 10;
+        this.currentFlow = 21; // Updated from 10 to match training baseline
         break;
       case SCENARIOS.MAJOR_LEAK:
         this.currentPressure = 50;
-        this.currentFlow = 15;
+        this.currentFlow = 21; // Updated from 15 to match training baseline
         break;
       case SCENARIOS.PIPE_BURST:
         this.currentPressure = 50;
-        this.currentFlow = 12;
+        this.currentFlow = 21; // Updated from 12 to match training baseline
         break;
     }
 

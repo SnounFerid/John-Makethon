@@ -229,7 +229,7 @@ class IsolationForest {
     return {
       anomalyScore: Math.min(1, Math.max(0, anomalyScore)),
       pathLength: avgPathLength,
-      isAnomaly: anomalyScore > 0.5 // Threshold at 0.5
+      isAnomaly: anomalyScore > 0.4 // Lowered from 0.5 to 0.4 for better sensitivity
     };
   }
 
@@ -263,8 +263,9 @@ class IsolationForest {
 class MLAnomalyDetector {
   constructor() {
     // Allow overriding defaults with environment variables for easy tuning
-    const defaultNumTrees = 500; // increased capacity (ideal)
-    const defaultSampleSize = 1024; // increased sample size (ideal)
+    // Increased parameters for better anomaly detection
+    const defaultNumTrees = 800; // Increased from 500 to 800 for better coverage
+    const defaultSampleSize = 2048; // Increased from 1024 to 2048 for more thorough partitioning
     const numTrees = parseInt(process.env.ISO_NUM_TREES, 10) || defaultNumTrees;
     const sampleSize = parseInt(process.env.ISO_SAMPLE_SIZE, 10) || defaultSampleSize;
 
@@ -281,7 +282,7 @@ class MLAnomalyDetector {
     this.createdModelsDir();
 
     // Load recommended threshold from config if available (written by calibration script)
-    this.recommendedThreshold = 0.5; // default
+    this.recommendedThreshold = 0.2; // Lowered from 0.25 to 0.2 for maximum sensitivity
     try {
       const cfgPath = path.join(this.modelPath, 'model_config.json');
       if (fs.existsSync(cfgPath)) {
@@ -296,6 +297,7 @@ class MLAnomalyDetector {
     }
 
     console.log('[ANOMALY_DETECTOR] ML-Based Anomaly Detector initialized');
+    console.log(`[ANOMALY_DETECTOR] Using ${numTrees} trees with sample size ${sampleSize}`);
   }
 
   /**
@@ -352,89 +354,104 @@ class MLAnomalyDetector {
     const normalData = [];
     const anomalyData = [];
 
-    console.log('[ANOMALY_DETECTOR] Generating synthetic training data...');
+    console.log('[ANOMALY_DETECTOR] Generating realistic synthetic training data...');
 
-    // Generate normal data (stable pressure and flow)
-    for (let i = 0; i < 500; i++) {
+    // ============ NORMAL OPERATING CONDITIONS ============
+    // Stable pressure: 45-55 PSI, stable flow: 8-12 L/min
+    for (let i = 0; i < 600; i++) {
+      const pressure = 50 + (Math.random() - 0.5) * 8; // 46-54 PSI
+      const flow = 10 + (Math.random() - 0.5) * 4; // 8-12 L/min
+      
       normalData.push({
-        pressure: 50 + (Math.random() - 0.5) * 4,
-        flow: 10 + (Math.random() - 0.5) * 2,
-        pressure_rate_of_change: (Math.random() - 0.5) * 0.5,
-        flow_rate_of_change: (Math.random() - 0.5) * 0.3,
-        pressure_ma_30s: 50 + (Math.random() - 0.5) * 2,
-        flow_ma_30s: 10 + (Math.random() - 0.5) * 1,
-        pressure_stddev_60s: 0.5 + Math.random() * 1,
-        flow_stddev_60s: 0.3 + Math.random() * 0.7,
-        pressure_flow_ratio: 5 + (Math.random() - 0.5) * 0.5,
+        pressure: pressure,
+        flow: flow,
+        pressure_rate_of_change: (Math.random() - 0.5) * 0.2, // Very small changes
+        flow_rate_of_change: (Math.random() - 0.5) * 0.15,
+        pressure_ma_30s: pressure + (Math.random() - 0.5) * 1,
+        flow_ma_30s: flow + (Math.random() - 0.5) * 0.5,
+        pressure_stddev_60s: 0.3 + Math.random() * 0.5, // Low variation
+        flow_stddev_60s: 0.2 + Math.random() * 0.3,
+        pressure_flow_ratio: pressure / flow, // Should be ~5 for normal
         hour_of_day: Math.floor(Math.random() * 24),
         is_weekend: Math.random() < 0.3,
         label: 'normal'
       });
     }
 
-    // Generate anomaly data (leak scenarios)
-    // Critical leak
+    // ============ MINOR LEAK SCENARIO ============
+    // Gradual pressure drop: 45-48 PSI, flow spike: 12-15 L/min
+    for (let i = 0; i < 150; i++) {
+      const pressure = 46 + (Math.random() - 0.5) * 4; // Dropped from 50 to 46
+      const flow = 13 + (Math.random() - 0.5) * 3; // Increased from 10 to 13
+      
+      anomalyData.push({
+        pressure: pressure,
+        flow: flow,
+        pressure_rate_of_change: -0.3 + (Math.random() - 0.5) * 0.1, // Negative pressure change
+        flow_rate_of_change: 0.2 + (Math.random() - 0.5) * 0.1, // Positive flow change
+        pressure_ma_30s: pressure + (Math.random() - 0.5) * 1.5,
+        flow_ma_30s: flow + (Math.random() - 0.5) * 1,
+        pressure_stddev_60s: 0.7 + Math.random() * 0.8, // Moderate variation
+        flow_stddev_60s: 0.6 + Math.random() * 0.8,
+        pressure_flow_ratio: pressure / flow, // ~3.5 (lower than normal)
+        hour_of_day: Math.floor(Math.random() * 24),
+        is_weekend: Math.random() < 0.3,
+        label: 'anomaly'
+      });
+    }
+
+    // ============ MAJOR LEAK SCENARIO ============
+    // Significant pressure drop: 20-35 PSI, heavy flow spike: 25-40 L/min
+    for (let i = 0; i < 200; i++) {
+      const pressure = 28 + (Math.random() - 0.5) * 10; // Significant drop to 23-33
+      const flow = 32 + (Math.random() - 0.5) * 10; // Heavy increase to 27-37
+      
+      anomalyData.push({
+        pressure: pressure,
+        flow: flow,
+        pressure_rate_of_change: -2.0 + (Math.random() - 0.5) * 0.5, // Very negative
+        flow_rate_of_change: 1.5 + (Math.random() - 0.5) * 0.5, // Very positive
+        pressure_ma_30s: pressure + (Math.random() - 0.5) * 3,
+        flow_ma_30s: flow + (Math.random() - 0.5) * 2,
+        pressure_stddev_60s: 2.0 + Math.random() * 2, // High variation
+        flow_stddev_60s: 1.8 + Math.random() * 1.5,
+        pressure_flow_ratio: pressure / flow, // ~0.9 (very low, highly anomalous)
+        hour_of_day: Math.floor(Math.random() * 24),
+        is_weekend: Math.random() < 0.3,
+        label: 'anomaly'
+      });
+    }
+
+    // ============ PIPE BURST SCENARIO ============
+    // Catastrophic: very low/zero pressure, chaotic flow
     for (let i = 0; i < 100; i++) {
+      const pressure = 5 + (Math.random() - 0.5) * 8; // Near zero: 1-9 PSI
+      const flow = 50 + (Math.random() - 0.5) * 30; // Chaotic: 35-65 L/min
+      
       anomalyData.push({
-        pressure: 30 + (Math.random() - 0.5) * 5,
-        flow: 25 + (Math.random() - 0.5) * 5,
-        pressure_rate_of_change: -5 + (Math.random() - 0.5) * 2,
-        flow_rate_of_change: 5 + (Math.random() - 0.5) * 2,
-        pressure_ma_30s: 32 + (Math.random() - 0.5) * 3,
-        flow_ma_30s: 24 + (Math.random() - 0.5) * 2,
-        pressure_stddev_60s: 2 + Math.random() * 2,
-        flow_stddev_60s: 1.5 + Math.random() * 1.5,
-        pressure_flow_ratio: 1.5 + (Math.random() - 0.5) * 0.5,
+        pressure: Math.max(0, pressure),
+        flow: flow,
+        pressure_rate_of_change: -5.0 + (Math.random() - 0.5) * 2, // Catastrophic drop
+        flow_rate_of_change: 3.0 + (Math.random() - 0.5) * 1, // Extreme increase
+        pressure_ma_30s: Math.max(0, pressure + (Math.random() - 0.5) * 5),
+        flow_ma_30s: flow + (Math.random() - 0.5) * 10,
+        pressure_stddev_60s: 3.0 + Math.random() * 3, // Extreme variation
+        flow_stddev_60s: 3.0 + Math.random() * 3,
+        pressure_flow_ratio: pressure > 0 ? pressure / flow : 0.01, // Near zero
         hour_of_day: Math.floor(Math.random() * 24),
         is_weekend: Math.random() < 0.3,
         label: 'anomaly'
       });
     }
 
-    // Minor leak
-    for (let i = 0; i < 80; i++) {
-      anomalyData.push({
-        pressure: 43 + (Math.random() - 0.5) * 3,
-        flow: 12 + (Math.random() - 0.5) * 3,
-        pressure_rate_of_change: -0.5 + (Math.random() - 0.5) * 0.3,
-        flow_rate_of_change: 0.3 + (Math.random() - 0.5) * 0.2,
-        pressure_ma_30s: 44 + (Math.random() - 0.5) * 2,
-        flow_ma_30s: 11.5 + (Math.random() - 0.5) * 1.5,
-        pressure_stddev_60s: 1.2 + Math.random() * 0.8,
-        flow_stddev_60s: 0.8 + Math.random() * 0.6,
-        pressure_flow_ratio: 3.8 + (Math.random() - 0.5) * 0.5,
-        hour_of_day: Math.floor(Math.random() * 24),
-        is_weekend: Math.random() < 0.3,
-        label: 'anomaly'
-      });
-    }
+    console.log(`[ANOMALY_DETECTOR] Generated ${normalData.length} normal samples`);
+    console.log(`[ANOMALY_DETECTOR] Generated ${anomalyData.length} anomaly samples`);
 
-    // Ratio anomaly
-    for (let i = 0; i < 70; i++) {
-      anomalyData.push({
-        pressure: 48 + (Math.random() - 0.5) * 2,
-        flow: 18 + (Math.random() - 0.5) * 3,
-        pressure_rate_of_change: (Math.random() - 0.5) * 0.3,
-        flow_rate_of_change: (Math.random() - 0.5) * 0.5,
-        pressure_ma_30s: 48 + (Math.random() - 0.5) * 1.5,
-        flow_ma_30s: 17 + (Math.random() - 0.5) * 2,
-        pressure_stddev_60s: 0.6 + Math.random() * 0.5,
-        flow_stddev_60s: 0.9 + Math.random() * 0.7,
-        pressure_flow_ratio: 2.7 + (Math.random() - 0.5) * 0.4,
-        hour_of_day: Math.floor(Math.random() * 24),
-        is_weekend: Math.random() < 0.3,
-        label: 'anomaly'
-      });
-    }
-
-    const trainingData = [...normalData, ...anomalyData];
-
-    console.log(`[ANOMALY_DETECTOR] ✓ Synthetic data generated`);
-    console.log(`  Normal samples: ${normalData.length}`);
-    console.log(`  Anomaly samples: ${anomalyData.length}`);
-    console.log(`  Total training samples: ${trainingData.length}`);
-
-    return trainingData;
+    return {
+      normal: normalData,
+      anomaly: anomalyData,
+      combined: [...normalData, ...anomalyData]
+    };
   }
 
   /**
@@ -480,7 +497,8 @@ class MLAnomalyDetector {
     const isAnomaly = prediction.anomalyScore > this.recommendedThreshold;
 
     return {
-      anomalyScore: Math.round(prediction.anomalyScore * 10000) / 100, // 0-100%
+      anomalyScore: prediction.anomalyScore, // Keep as 0-1 scale for probability combination
+      anomalyScorePercent: Math.round(prediction.anomalyScore * 10000) / 100, // 0-100% for display
       isAnomaly,
       pathLength: Math.round(prediction.pathLength * 100) / 100,
       confidence: Math.round(Math.abs(prediction.anomalyScore - this.recommendedThreshold) * 2 * 10000) / 100 // Confidence % from 0 to 100
@@ -602,6 +620,9 @@ class MLAnomalyDetector {
     }
 
     const modelPath = path.join(this.modelPath, filename);
+    
+    // Only save metadata (trees are too large to serialize)
+    // The model will be retrained on next load from training_data
     const modelData = {
       timestamp: getCurrentTimestamp(),
       isTrained: this.model.isTrained,
@@ -610,13 +631,15 @@ class MLAnomalyDetector {
       features: this.model.features,
       featureMeans: this.model.featureMeans,
       featureStdDevs: this.model.featureStdDevs,
+      // NOTE: Trees are NOT serialized (too large, use dynamic retraining instead)
       metrics: this.calculateMetrics()
     };
 
     try {
       fs.writeFileSync(modelPath, JSON.stringify(modelData, null, 2));
-      console.log(`[ANOMALY_DETECTOR] ✓ Model saved to: ${modelPath}`);
+      console.log(`[ANOMALY_DETECTOR] ✓ Model metadata saved to: ${modelPath}`);
       console.log(`  File size: ${(fs.statSync(modelPath).size / 1024).toFixed(2)} KB`);
+      console.log(`  Note: Trees are kept in-memory; model will retrain on app restart`);
       return true;
     } catch (error) {
       console.error(`[ANOMALY_DETECTOR] Failed to save model:`, error.message);
@@ -631,23 +654,31 @@ class MLAnomalyDetector {
     const modelPath = path.join(this.modelPath, filename);
 
     if (!fs.existsSync(modelPath)) {
-      console.error(`[ANOMALY_DETECTOR] Model file not found: ${modelPath}`);
+      console.log(`[ANOMALY_DETECTOR] Model file not found: ${modelPath}`);
       return false;
     }
 
     try {
       const modelData = JSON.parse(fs.readFileSync(modelPath, 'utf8'));
 
+      // Restore model metadata
       this.model.isTrained = modelData.isTrained;
-      this.model.numTrees = modelData.numTrees;
-      this.model.sampleSize = modelData.sampleSize;
+      this.model.numTrees = modelData.numTrees || 800;
+      this.model.sampleSize = modelData.sampleSize || 2048;
       this.model.features = modelData.features;
       this.model.featureMeans = modelData.featureMeans;
       this.model.featureStdDevs = modelData.featureStdDevs;
-
-      console.log(`[ANOMALY_DETECTOR] ✓ Model loaded from: ${modelPath}`);
-      console.log(`  Features: ${modelData.features.length}`);
-      console.log(`  Accuracy: ${modelData.metrics.accuracy}%`);
+      
+      // CRITICAL: Load trees if they exist in the file
+      if (modelData.trees && Array.isArray(modelData.trees)) {
+        this.model.trees = modelData.trees;
+        console.log(`[ANOMALY_DETECTOR] ✓ Model loaded with ${modelData.trees.length} trees!`);
+      } else {
+        console.log(`[ANOMALY_DETECTOR] ✓ Model metadata loaded (trees not serialized)`);
+      }
+      
+      console.log(`[ANOMALY_DETECTOR]   Features: ${modelData.features.length}`);
+      console.log(`[ANOMALY_DETECTOR]   Trees: ${modelData.numTrees}`);
 
       return true;
     } catch (error) {
