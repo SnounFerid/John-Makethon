@@ -6,7 +6,7 @@ import Dashboard from './components/Dashboard';
 import HistoricalData from './components/HistoricalData';
 import LeakAlertPanel from './components/LeakAlertPanel';
 import ValveControl from './components/ValveControl';
-import AIInsights from './components/AIInsights';
+import LeakPrediction from './components/LeakPrediction';
 import PredictiveMaintenance from './components/PredictiveMaintenance';
 import ConnectionStatus from './components/ConnectionStatus';
 import {
@@ -55,8 +55,8 @@ const Navigation = () => {
             </Link>
           </li>
           <li>
-            <Link to="/ai-insights" onClick={() => setIsOpen(false)}>
-              <FiCpu /> AI Insights
+            <Link to="/leak-prediction" onClick={() => setIsOpen(false)}>
+              <FiCpu /> Leak Prediction
             </Link>
           </li>
           <li>
@@ -86,7 +86,7 @@ const App = () => {
                 <Route path="/historical" element={<HistoricalData />} />
                 <Route path="/alerts" element={<LeakAlertPanel />} />
                 <Route path="/valve" element={<ValveControl />} />
-                <Route path="/ai-insights" element={<AIInsights />} />
+                <Route path="/leak-prediction" element={<LeakPrediction />} />
                 <Route path="/maintenance" element={<PredictiveMaintenance />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>

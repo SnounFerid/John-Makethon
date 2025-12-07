@@ -15,9 +15,9 @@ const SCENARIOS = {
 };
 
 // Updated to match real trained model baseline (50 PSI, 21 L/min average)
-const NORMAL_PRESSURE_RANGE = { min: 40, max: 60 }; // PSI - centered around 50
-const NORMAL_FLOW_RANGE = { min: 15, max: 27 }; // L/min - centered around 21 (was 5-15, too low)
-const NORMAL_VARIATION = { pressure: 2.0, flow: 2.0 }; // Realistic variation matching training data
+const NORMAL_PRESSURE_RANGE = { min: 48, max: 52 }; // PSI - tight range around 50 (normal)
+const NORMAL_FLOW_RANGE = { min: 19, max: 23 }; // L/min - tight range around 21 (normal)
+const NORMAL_VARIATION = { pressure: 1.0, flow: 0.8 }; // Reduced variation for stable normal operation
 
 class DataSimulator {
   constructor() {

@@ -1,0 +1,22 @@
+{
+  "features": [
+    "Pressure_PSI",
+    "Flow_GPM",
+    "Velocity_FPS",
+    "Temperature_F"
+  ],
+  "mean": {
+    "Pressure_PSI": 44.68835211504315,
+    "Flow_GPM": 27.759287055787425,
+    "Velocity_FPS": 1.1100512369477806,
+    "Temperature_F": 68.39555418733919
+  },
+  "std": {
+    "Pressure_PSI": 11.218452628780458,
+    "Flow_GPM": 16.518340337728965,
+    "Velocity_FPS": 0.6608853499373228,
+    "Temperature_F": 1.8296517976313318
+  },
+  "threshold": 0.9416792479684963,
+  "weights": {}
+}

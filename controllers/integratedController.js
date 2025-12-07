@@ -1,24 +1,26 @@
 /**
  * Integrated API Controller
- * Bridges the integrated leak detection engine with Express API endpoints
+ * Bridges the dual AI leak detection engine with Express API endpoints
+ * Uses LSTM for anomaly detection + Regression for predictive maintenance
  */
 
-const { integratedEngine } = require('../utils/integratedEngine');
+const { dualAIEngine } = require('../utils/dualAIIntegratedEngine');
+const { integratedEngine } = require('../utils/integratedEngine'); // Keep for backward compatibility
 const { AppError, asyncHandler } = require('../middleware/errorHandler');
 
 /**
- * Initialize the integrated detection engine with default settings
+ * Initialize the dual AI detection engine
  */
 const initializeEngine = asyncHandler(async (req, res) => {
-  const { baselinePressure = 50, baselineFlow = 10, useMLDetection = true, usePredictiveMaintenance = true } = req.body;
+  const { baselinePressure = 50, baselineFlow = 21, useDualAI = true, usePredictiveMaintenance = true } = req.body;
 
   try {
     // Initialize rule-based detection
-    integratedEngine.initializeRuleBasedDetection(baselinePressure, baselineFlow);
+    dualAIEngine.initializeRuleBasedDetection(baselinePressure, baselineFlow);
 
-    // Initialize ML detection if requested
-    if (useMLDetection) {
-      integratedEngine.initializeMLDetection();
+    // Initialize dual AI (LSTM + Regression) if requested
+    if (useDualAI) {
+      dualAIEngine.initializeDualAI();
     }
 
     // Initialize predictive maintenance if requested
@@ -33,14 +35,14 @@ const initializeEngine = asyncHandler(async (req, res) => {
           previousLeakCount: 2
         }
       ];
-      integratedEngine.initializePredictiveMaintenance(pipeConfigs);
+      dualAIEngine.initializePredictiveMaintenance(pipeConfigs);
     }
 
-    const status = integratedEngine.getSystemStatus();
+    const status = dualAIEngine.getSystemStatus();
 
     res.json({
       success: true,
-      message: 'Integrated detection engine initialized',
+      message: 'Dual AI detection engine initialized (LSTM + Regression)',
       data: status
     });
   } catch (error) {
@@ -49,21 +51,22 @@ const initializeEngine = asyncHandler(async (req, res) => {
 });
 
 /**
- * Process sensor reading through integrated detection pipeline
+ * Process sensor reading through dual AI detection pipeline
  */
 const processIntegratedReading = asyncHandler(async (req, res) => {
-  const { pressure, flow, valve_state = 'OPEN', temperature = 20 } = req.body;
+  const { pressure, flow, valve_state = 'OPEN', temperature = 20, conductivity = 200 } = req.body;
 
   if (typeof pressure !== 'number' || typeof flow !== 'number') {
     throw new AppError('Pressure and flow must be numeric values', 400);
   }
 
   try {
-    const result = integratedEngine.processReading({
+    const result = dualAIEngine.processReading({
       pressure,
       flow,
       valve_state,
       temperature,
+      conductivity,
       timestamp: Date.now()
     });
 
@@ -74,7 +77,7 @@ const processIntegratedReading = asyncHandler(async (req, res) => {
     res.json({
       success: true,
       data: result,
-      message: result.detection.overallLeakDetected ? '⚠️  Leak detected' : '✓ No leak detected'
+      message: result.detectionResultSummary.overallLeakDetected ? '⚠️  Leak detected' : '✓ No leak detected'
     });
   } catch (error) {
     throw new AppError('Processing failed: ' + error.message, 500);
@@ -83,19 +86,30 @@ const processIntegratedReading = asyncHandler(async (req, res) => {
 
 /**
  * GET /api/detection/status
- * Get current system status and health
+ * Get current dual AI system status
  */
 const getDetectionStatus = asyncHandler(async (req, res) => {
-  const status = integratedEngine.getSystemStatus();
-  const patterns = integratedEngine.analyzeHistoricalPatterns();
+  const status = dualAIEngine.getSystemStatus();
+  
+  // Get the latest detection result to include current probability
+  const recentDetections = dualAIEngine.getRecentDetections(1);
+  const latestProbability = recentDetections.length > 0 
+    ? recentDetections[0].detection?.overallProbability || 0
+    : 0;
 
   res.json({
     success: true,
     data: {
       systemStatus: status,
-      detectionPatterns: patterns,
-      recentAlertCount: integratedEngine.alerts.length,
-      systemHealth: integratedEngine._assessSystemHealth(patterns, status)
+      detectionPatterns: {
+        averageProbability: latestProbability
+      },
+      recentAlertCount: dualAIEngine.alerts.length,
+      models: {
+        lstm: status.dualAIStatus.lstmLoaded,
+        regression: status.dualAIStatus.regressionLoaded,
+        bufferReady: status.dualAIStatus.hasEnoughData
+      }
     }
   });
 });
@@ -107,7 +121,7 @@ const getDetectionStatus = asyncHandler(async (req, res) => {
 const getRecentDetections = asyncHandler(async (req, res) => {
   const { count = 100, leaksOnly = false } = req.query;
 
-  let detections = integratedEngine.getRecentDetections(parseInt(count));
+  let detections = dualAIEngine.getRecentDetections(parseInt(count));
 
   if (leaksOnly === 'true') {
     detections = detections.filter(d => d.detection.overallLeakDetected);
@@ -127,7 +141,7 @@ const getRecentDetections = asyncHandler(async (req, res) => {
 const getRecentAlerts = asyncHandler(async (req, res) => {
   const { count = 50, severity = null } = req.query;
 
-  let alerts = integratedEngine.getRecentAlerts(parseInt(count));
+  let alerts = dualAIEngine.getRecentAlerts(parseInt(count));
 
   if (severity) {
     alerts = alerts.filter(a => a.severity === severity.toUpperCase());
@@ -145,7 +159,7 @@ const getRecentAlerts = asyncHandler(async (req, res) => {
  * Analyze detection patterns
  */
 const getDetectionPatterns = asyncHandler(async (req, res) => {
-  const patterns = integratedEngine.analyzeHistoricalPatterns();
+  const patterns = dualAIEngine.analyzeHistoricalPatterns();
 
   if (!patterns) {
     throw new AppError('Insufficient data for pattern analysis', 400);
@@ -162,7 +176,7 @@ const getDetectionPatterns = asyncHandler(async (req, res) => {
  * Get comprehensive system report
  */
 const getComprehensiveReport = asyncHandler(async (req, res) => {
-  const report = integratedEngine.getComprehensiveReport();
+  const report = dualAIEngine.getComprehensiveReport();
 
   res.json({
     success: true,
@@ -175,7 +189,7 @@ const getComprehensiveReport = asyncHandler(async (req, res) => {
  * Reset the detection engine
  */
 const resetDetectionEngine = asyncHandler(async (req, res) => {
-  integratedEngine.reset();
+  dualAIEngine.reset();
 
   res.json({
     success: true,
@@ -188,7 +202,7 @@ const resetDetectionEngine = asyncHandler(async (req, res) => {
  * Get detailed system information
  */
 const getSystemInfo = asyncHandler(async (req, res) => {
-  const status = integratedEngine.getSystemStatus();
+  const status = dualAIEngine.getSystemStatus();
 
   res.json({
     success: true,

@@ -7,6 +7,7 @@ const {
   formatSensorData,
   detectLeak 
 } = require('../utils/helpers');
+const { dualAIEngine } = require('../utils/dualAIIntegratedEngine');
 const { integratedEngine } = require('../utils/integratedEngine');
 const { valveState } = require('./leakDetectionController');
 
@@ -100,18 +101,30 @@ const addSensorData = asyncHandler(async (req, res) => {
           };
           req.app.wsService.broadcastAlert(alert);
         }
-        // Also process the reading through the integrated detection engine so historical
-        // detections and AI insights populate automatically.
+        // Also process the reading through the dual AI detection engine for leak detection
         try {
-          integratedEngine.processReading({
+          const detectionResult = dualAIEngine.processReading({
             pressure: sensorData.pressure,
             flow: sensorData.flow,
             valve_state: sensorData.valve_state,
-            temperature: sensorData.temperature,
+            temperature: sensorData.temperature || 20,
+            conductivity: sensorData.conductivity || 200,
             timestamp
           });
+          
+          // Broadcast detection alert if probability is significant
+          if (detectionResult && detectionResult.detectionResultSummary && detectionResult.detectionResultSummary.overallProbability >= 50) {
+            req.app.wsService.broadcastAlert({
+              id: detectionResult.id,
+              severity: detectionResult.detectionResultSummary.severityLevel,
+              probability: detectionResult.detectionResultSummary.overallProbability,
+              message: `🚨 Leak detected: ${detectionResult.detectionResultSummary.severityLevel} severity (${detectionResult.detectionResultSummary.overallProbability}%)`,
+              detectionMethods: detectionResult.detectionResultSummary.detectionMethods,
+              timestamp: detectionResult.timestamp
+            });
+          }
         } catch (engErr) {
-          console.error('[SENSOR] integratedEngine.processReading failed:', engErr.message || engErr);
+          console.error('[SENSOR] dualAIEngine.processReading failed:', engErr.message || engErr);
         }
       }
     } catch (bErr) {

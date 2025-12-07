@@ -187,16 +187,26 @@ server.listen(PORT, async () => {
 ║════════════════════════════════════════════════════════════╝
   `);
 
-  // Initialize the leak detection engine on startup
+  // Initialize the dual AI leak detection engine on startup
   try {
-    const { integratedEngine } = require('../utils/integratedEngine');
-    console.log('\n[STARTUP] Initializing leak detection engine...');
-    integratedEngine.initializeRuleBasedDetection(50, 10);
-    integratedEngine.initializeMLDetection();
-    integratedEngine.initializePredictiveMaintenance();
-    console.log('[STARTUP] ✓ Leak detection engine ready\n');
+    const { dualAIEngine } = require('../utils/dualAIIntegratedEngine');
+    console.log('\n[STARTUP] Initializing Dual AI Detection Engine...');
+    console.log('[STARTUP] • LSTM Anomaly Detection (Real-time)');
+    console.log('[STARTUP] • Regression Predictive Maintenance (Forecasting)');
+    console.log('[STARTUP] • Rule-Based Detection (Traditional)');
+    
+    dualAIEngine.initializeRuleBasedDetection(50, 21); // Updated baseline to match training
+    dualAIEngine.initializeDualAI();
+    dualAIEngine.initializePredictiveMaintenance();
+    
+    console.log('[STARTUP] ✅ Dual AI Detection Engine Ready');
+    console.log('[STARTUP] • LSTM Model Loaded: ', dualAIEngine.systemStatus.dualAIReady);
+    console.log('[STARTUP] • Regression Model Loaded: ', dualAIEngine.systemStatus.dualAIReady);
+    console.log('[STARTUP] • Rule-Based Ready: ', dualAIEngine.systemStatus.ruleBasedReady);
+    console.log('[STARTUP] • Maintenance Module Ready: ', dualAIEngine.systemStatus.maintenanceReady);
+    console.log('');
   } catch (error) {
-    console.error('[STARTUP] Failed to initialize leak detection engine:', error.message);
+    console.error('[STARTUP] ⚠️  Failed to initialize Dual AI engine:', error.message);
   }
 });
 
