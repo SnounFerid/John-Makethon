@@ -9,7 +9,7 @@ const {
 } = require('../utils/helpers');
 const { dualAIEngine } = require('../utils/dualAIIntegratedEngine');
 const { integratedEngine } = require('../utils/integratedEngine');
-const { valveState } = require('./leakDetectionController');
+const { valveState } = require('./valveController');
 
 /**
  * POST /api/sensor-data
@@ -34,19 +34,14 @@ const addSensorData = asyncHandler(async (req, res) => {
     throw new AppError(`Validation failed: ${validation.errors.join(', ')}`, 400);
   }
 
-  // If valve is closed, ignore incoming readings because there's no flow
-  try {
-    if (valveState && String(valveState.state).toUpperCase() === 'CLOSED') {
-      // Do not persist or broadcast readings while valve is closed
-      return res.status(200).json({
-        success: false,
-        message: 'Valve is closed; reading ignored',
-        data: null
-      });
-    }
-  } catch (e) {
-    // If valve state cannot be determined, proceed normally
-    console.warn('[SENSOR] Could not read valve state, proceeding to save reading', e.message || e);
+  // REJECT if valve is CLOSED - no sensor readings when closed
+  if (valveState && String(valveState.state).toUpperCase() === 'CLOSED') {
+    console.log('[SENSOR] ❌ Reading rejected: Valve is CLOSED - no sensor data accepted');
+    return res.status(403).json({
+      success: false,
+      message: 'Valve is closed - sensor readings not accepted',
+      valveState: valveState.state
+    });
   }
 
   // Check for leak

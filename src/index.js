@@ -23,6 +23,7 @@ const integratedRoutes = require('../routes/integratedRoutes');
 // `websocket` REST endpoints live under `src/routes/websocket.js`
 const websocketRoutes = require('./routes/websocket');
 const alertsRoutes = require('../routes/alertsRoutes');
+const valveRoutes = require('../routes/valveRoutes');
 
 // Initialize Express app
 const app = express();
@@ -83,10 +84,7 @@ app.get('/api/docs', (req, res) => {
       },
       leakDetection: {
         status: 'GET /api/leak-detection - Get current leak status and predictions',
-        predictions: 'GET /api/leak-detection/predictions - Get leak predictions',
-        valveControl: 'POST /api/valve-control - Control valve (open/close)',
-        valveStatus: 'GET /api/valve-control/status - Get valve status',
-        valveHistory: 'GET /api/valve-control/history - Get valve history'
+        predictions: 'GET /api/leak-detection/predictions - Get leak predictions'
       },
       integratedDetection: {
         initialize: 'POST /api/detection/initialize - Initialize detection engine',
@@ -117,14 +115,8 @@ app.use('/api/train-model', mlRoutes);
 app.use('/api/leak-detection', leakDetectionRoutes);
 app.use('/api/detection', integratedRoutes);
 app.use('/api/websocket', websocketRoutes);
-// Alerts endpoints (legacy frontend expects /api/alerts/*)
 app.use('/api/alerts', alertsRoutes);
-
-// Valve control endpoints (mounted separately) - controller at repo root `controllers/`
-const { controlValveEndpoint, getValveStatus, getValveHistory } = require('../controllers/leakDetectionController');
-app.post('/api/valve-control', controlValveEndpoint);
-app.get('/api/valve-control/status', getValveStatus);
-app.get('/api/valve-control/history', getValveHistory);
+app.use('/api/valve', valveRoutes);
 
 /**
  * ===== ERROR HANDLING =====
@@ -208,33 +200,6 @@ server.listen(PORT, async () => {
     console.log('');
   } catch (error) {
     console.error('[STARTUP] ⚠️  Failed to initialize Dual AI engine:', error.message);
-  }
-
-  // Initialize WiFi valve controller for Heltec V2 (optional)
-  try {
-    const { initializeWiFiValve } = require('../utils/wifiValveController');
-    const heltecIP = process.env.HELTEC_IP || '192.168.1.100';
-    
-    console.log('[STARTUP] Initializing WiFi Valve Controller...');
-    console.log(`[STARTUP] • Target Heltec V2: ${heltecIP}`);
-    
-    const wifiValve = initializeWiFiValve(heltecIP);
-    const connected = await wifiValve.initialize();
-    
-    if (connected) {
-      console.log('[STARTUP] ✅ WiFi Valve Controller Ready');
-      console.log('[STARTUP] • Auto-close at 85% probability: ENABLED');
-      console.log('[STARTUP] • Communication: HTTP REST API');
-      console.log('[STARTUP] • GPIO Pin: 21 (Solenoid valve)');
-    } else {
-      console.log('[STARTUP] ⚠️  WiFi Valve Controller unavailable');
-      console.log('[STARTUP] • Falling back to local simulation mode');
-    }
-    console.log('');
-  } catch (error) {
-    console.warn('[STARTUP] ⚠️  WiFi Valve Controller initialization error:', error.message);
-    console.log('[STARTUP] • System will use local valve simulation');
-    console.log('');
   }
 });
 

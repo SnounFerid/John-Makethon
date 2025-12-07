@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import { DetectionContext } from '../context/DetectionContext';
 import { WebSocketContext } from '../context/WebSocketContext';
 import { detectionAPI } from '../services/apiClient';
+import ManualValveControl from './ManualValveControl';
 import {
   LineChart, Line, AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell
@@ -31,6 +32,26 @@ const Dashboard = () => {
   const [displayReading, setDisplayReading] = useState(null);
   const [liveReadings, setLiveReadings] = useState([]);
   const [liveLeakProbability, setLiveLeakProbability] = useState(0);
+  const [valveState, setValveState] = useState('OPEN');
+
+  // Fetch valve state
+  useEffect(() => {
+    const fetchValveState = async () => {
+      try {
+        const response = await fetch('http://localhost:3000/api/valve/status');
+        const data = await response.json();
+        if (data.success) {
+          setValveState(data.data.state);
+        }
+      } catch (err) {
+        console.error('[DASHBOARD] Failed to fetch valve state:', err);
+      }
+    };
+
+    fetchValveState();
+    const interval = setInterval(fetchValveState, 5000); // Check every 5 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   // Ensure charts update at least once per minute with latest values
   useEffect(() => {
@@ -171,29 +192,51 @@ const Dashboard = () => {
     return <div className="dashboard-loading">Loading dashboard...</div>;
   }
 
+  const isValveOpen = valveState === 'OPEN';
+
   const gaugeData = [
-    { name: 'Pressure', value: displayReading?.pressure || 0, max: 100, unit: 'PSI', color: '#3b82f6' },
-    { name: 'Flow Rate', value: displayReading?.flow || 0, max: 200, unit: 'GPM', color: '#10b981' },
-    { name: 'Temperature', value: displayReading?.temperature || 0, max: 80, unit: '°C', color: '#f97316' },
+    { name: 'Pressure', value: isValveOpen ? (displayReading?.pressure || 0) : 0, max: 100, unit: 'PSI', color: '#3b82f6' },
+    { name: 'Flow Rate', value: isValveOpen ? (displayReading?.flow || 0) : 0, max: 200, unit: 'GPM', color: '#10b981' },
+    { name: 'Temperature', value: isValveOpen ? (displayReading?.temperature || 0) : 0, max: 80, unit: '°C', color: '#f97316' },
   ];
 
   // Build chartData from recentDetections (preferred) or liveReadings fallback
   let chartData = [];
-  if (Array.isArray(recentDetections) && recentDetections.length > 0) {
-    // map the detection objects produced by integratedEngine
-    chartData = recentDetections.slice(-50).map((d) => ({
-      time: new Date(d.timestamp).toLocaleTimeString(),
-      pressure: Number(d.readings?.pressure) || 0,
-      flow: Number(d.readings?.flow) || 0,
-      leakRisk: Number(d.detection?.overallProbability) || 0,
-    }));
-  } else if (liveReadings.length > 0) {
-    chartData = liveReadings.slice(-50).map((r) => ({
-      time: new Date(r.timestamp).toLocaleTimeString(),
-      pressure: Number(r.pressure) || 0,
-      flow: Number(r.flow) || 0,
-      leakRisk: r.leakRisk != null ? Number(r.leakRisk) : 0,
-    }));
+  if (isValveOpen) {
+    // Only show data when valve is OPEN
+    if (Array.isArray(recentDetections) && recentDetections.length > 0) {
+      // map the detection objects produced by integratedEngine
+      chartData = recentDetections.slice(-50).map((d) => ({
+        time: new Date(d.timestamp).toLocaleTimeString(),
+        pressure: Number(d.readings?.pressure) || 0,
+        flow: Number(d.readings?.flow) || 0,
+        leakRisk: Number(d.detection?.overallProbability) || 0,
+      }));
+    } else if (liveReadings.length > 0) {
+      chartData = liveReadings.slice(-50).map((r) => ({
+        time: new Date(r.timestamp).toLocaleTimeString(),
+        pressure: Number(r.pressure) || 0,
+        flow: Number(r.flow) || 0,
+        leakRisk: r.leakRisk != null ? Number(r.leakRisk) : 0,
+      }));
+    }
+  } else {
+    // When valve is CLOSED, show all zeros in charts
+    if (Array.isArray(recentDetections) && recentDetections.length > 0) {
+      chartData = recentDetections.slice(-50).map((d) => ({
+        time: new Date(d.timestamp).toLocaleTimeString(),
+        pressure: 0,
+        flow: 0,
+        leakRisk: 0,
+      }));
+    } else if (liveReadings.length > 0) {
+      chartData = liveReadings.slice(-50).map((r) => ({
+        time: new Date(r.timestamp).toLocaleTimeString(),
+        pressure: 0,
+        flow: 0,
+        leakRisk: 0,
+      }));
+    }
   }
 
   return (
@@ -233,7 +276,7 @@ const Dashboard = () => {
           </div>
           <div className="status-content">
             <p className="status-label">Leak Probability</p>
-            <p className="status-value">{liveLeakProbability}%</p>
+            <p className="status-value">{isValveOpen ? liveLeakProbability : 0}%</p>
           </div>
         </div>
       </div>
@@ -346,6 +389,9 @@ const Dashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Manual Valve Control Section */}
+      <ManualValveControl />
     </div>
   );
 };

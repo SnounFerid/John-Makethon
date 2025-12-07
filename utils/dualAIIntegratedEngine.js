@@ -134,12 +134,6 @@ class DualAIIntegratedEngine {
     // Step 5: Generate alert if probability changed significantly
     const alert = this._generateAlertIfNeeded(combinedResult, features);
 
-    // Step 6: Auto-close valve if probability exceeds 85%
-    let autoCloseAction = null;
-    if (combinedResult.overallProbability >= 85 && features.valve_state === 'OPEN') {
-      autoCloseAction = this._triggerAutoClose(combinedResult, features);
-    }
-
     // Store in history
     this.detectionHistory.push({
       id,
@@ -148,8 +142,7 @@ class DualAIIntegratedEngine {
       ruleBasedResult,
       dualAIResult,
       combinedResult,
-      alert,
-      autoCloseAction
+      alert
     });
 
     if (this.detectionHistory.length > 10000) {
@@ -161,7 +154,6 @@ class DualAIIntegratedEngine {
       timestamp,
       detectionResultSummary: combinedResult,
       alert: alert || null,
-      autoCloseAction: autoCloseAction || null,
       systemStatus: this.systemStatus
     };
   }
@@ -488,25 +480,6 @@ class DualAIIntegratedEngine {
       recentAlerts: this.getRecentAlerts(20),
       recentDetections: this.getRecentDetections(50)
     };
-  }
-
-  /**
-   * Trigger automatic valve closure when probability exceeds 85%
-   */
-  _triggerAutoClose(combinedResult, features) {
-    const autoCloseInfo = {
-      triggered: true,
-      timestamp: getCurrentTimestamp(),
-      probability: combinedResult.overallProbability,
-      severity: combinedResult.severityLevel,
-      reason: `Auto-close triggered at ${combinedResult.overallProbability}% leak probability (threshold: 85%)`
-    };
-
-    console.log(`[DUAL_AI_ENGINE] 🔴 AUTO-CLOSE TRIGGERED: ${autoCloseInfo.reason}`);
-    console.log(`[DUAL_AI_ENGINE] Location: ${features.location || 'Main line'}`);
-    console.log(`[DUAL_AI_ENGINE] Valve will be closed automatically by integrated controller`);
-
-    return autoCloseInfo;
   }
 
   /**

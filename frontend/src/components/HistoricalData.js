@@ -30,6 +30,26 @@ const HistoricalData = () => {
   });
 
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [valveState, setValveState] = useState('OPEN');
+
+  // Fetch valve state
+  useEffect(() => {
+    const fetchValveState = async () => {
+      try {
+        const response = await fetch('http://localhost:3000/api/valve/status');
+        const data = await response.json();
+        if (data.success) {
+          setValveState(data.data.state);
+        }
+      } catch (err) {
+        console.error('[HISTORICAL DATA] Failed to fetch valve state:', err);
+      }
+    };
+
+    fetchValveState();
+    const interval = setInterval(fetchValveState, 5000); // Check every 5 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     console.log('[HISTORICAL DATA] Component mounted, fetching initial data');
@@ -74,9 +94,9 @@ const HistoricalData = () => {
   // Prepare chart data
   const chartData = filteredData.slice(-100).map((item, idx) => ({
     time: new Date(item.timestamp).toLocaleTimeString(),
-    pressure: parseFloat(item.pressure) || 0,
-    flow: parseFloat(item.flow) || 0,
-    temperature: (typeof item.temperature !== 'undefined' && item.temperature !== null && !isNaN(item.temperature)) ? parseFloat(item.temperature) : undefined,
+    pressure: valveState === 'OPEN' ? (parseFloat(item.pressure) || 0) : 0,
+    flow: valveState === 'OPEN' ? (parseFloat(item.flow) || 0) : 0,
+    temperature: valveState === 'OPEN' ? ((typeof item.temperature !== 'undefined' && item.temperature !== null && !isNaN(item.temperature)) ? parseFloat(item.temperature) : undefined) : 0,
     index: idx,
   }));
 
@@ -98,15 +118,15 @@ const HistoricalData = () => {
           <div className="realtime-grid">
             <div className="metric-box">
               <span className="metric-label">Pressure (PSI)</span>
-              <span className="metric-value">{parseFloat(latestSensorData.pressure).toFixed(2)}</span>
+              <span className="metric-value">{valveState === 'OPEN' ? parseFloat(latestSensorData.pressure).toFixed(2) : '0'}</span>
             </div>
             <div className="metric-box">
               <span className="metric-label">Flow (GPM)</span>
-              <span className="metric-value">{parseFloat(latestSensorData.flow).toFixed(2)}</span>
+              <span className="metric-value">{valveState === 'OPEN' ? parseFloat(latestSensorData.flow).toFixed(2) : '0'}</span>
             </div>
             <div className="metric-box">
               <span className="metric-label">Temperature (°C)</span>
-              <span className="metric-value">{latestSensorData && typeof latestSensorData.temperature !== 'undefined' && latestSensorData.temperature !== null ? parseFloat(latestSensorData.temperature).toFixed(1) : 'N/A'}</span>
+              <span className="metric-value">{valveState === 'OPEN' ? (latestSensorData && typeof latestSensorData.temperature !== 'undefined' && latestSensorData.temperature !== null ? parseFloat(latestSensorData.temperature).toFixed(1) : 'N/A') : '0'}</span>
             </div>
             <div className="metric-box">
               <span className="metric-label">Conductivity</span>
@@ -161,33 +181,45 @@ const HistoricalData = () => {
       <div className="stats-grid">
         <div className="stat-card">
           <p className="stat-label">Total Records</p>
-          <p className="stat-value">{filteredData.length}</p>
+          <p className="stat-value">{valveState === 'OPEN' ? filteredData.length : 0}</p>
         </div>
         <div className="stat-card">
           <p className="stat-label">Avg Pressure (PSI)</p>
           <p className="stat-value">
-            {(
-              filteredData.reduce((sum, item) => sum + (parseFloat(item.pressure) || 0), 0) /
-              filteredData.length || 0
-            ).toFixed(2)}
+            {valveState === 'OPEN' ? (
+              (
+                filteredData.reduce((sum, item) => sum + (parseFloat(item.pressure) || 0), 0) /
+                filteredData.length || 0
+              ).toFixed(2)
+            ) : (
+              '0.00'
+            )}
           </p>
         </div>
         <div className="stat-card">
           <p className="stat-label">Avg Flow (GPM)</p>
           <p className="stat-value">
-            {(
-              filteredData.reduce((sum, item) => sum + (parseFloat(item.flow) || 0), 0) /
-              filteredData.length || 0
-            ).toFixed(2)}
+            {valveState === 'OPEN' ? (
+              (
+                filteredData.reduce((sum, item) => sum + (parseFloat(item.flow) || 0), 0) /
+                filteredData.length || 0
+              ).toFixed(2)
+            ) : (
+              '0.00'
+            )}
           </p>
         </div>
         <div className="stat-card">
           <p className="stat-label">Avg Temperature (°C)</p>
           <p className="stat-value">
-            {(
-              filteredData.reduce((sum, item) => sum + (parseFloat(item.temperature) || 0), 0) /
-              filteredData.length || 0
-            ).toFixed(2)}
+            {valveState === 'OPEN' ? (
+              (
+                filteredData.reduce((sum, item) => sum + (parseFloat(item.temperature) || 0), 0) /
+                filteredData.length || 0
+              ).toFixed(2)
+            ) : (
+              '0.00'
+            )}
           </p>
         </div>
       </div>
@@ -310,10 +342,10 @@ const HistoricalData = () => {
                 {filteredData.slice(-20).reverse().map((item, idx) => (
                   <tr key={idx}>
                     <td>{new Date(item.timestamp).toLocaleString()}</td>
-                    <td>{parseFloat(item.pressure).toFixed(2)}</td>
-                    <td>{parseFloat(item.flow).toFixed(2)}</td>
-                    <td>{typeof item.temperature !== 'undefined' && item.temperature !== null ? parseFloat(item.temperature).toFixed(2) : 'N/A'}</td>
-                    <td>{typeof item.conductivity !== 'undefined' && item.conductivity !== null ? parseFloat(item.conductivity).toFixed(0) : 'N/A'}</td>
+                    <td>{valveState === 'OPEN' ? parseFloat(item.pressure).toFixed(2) : '0.00'}</td>
+                    <td>{valveState === 'OPEN' ? parseFloat(item.flow).toFixed(2) : '0.00'}</td>
+                    <td>{valveState === 'OPEN' ? (typeof item.temperature !== 'undefined' && item.temperature !== null ? parseFloat(item.temperature).toFixed(2) : 'N/A') : '0.00'}</td>
+                    <td>{valveState === 'OPEN' ? (typeof item.conductivity !== 'undefined' && item.conductivity !== null ? parseFloat(item.conductivity).toFixed(0) : 'N/A') : '0'}</td>
                   </tr>
                 ))}
               </tbody>

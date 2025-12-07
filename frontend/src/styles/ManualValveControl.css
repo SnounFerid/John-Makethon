@@ -1,0 +1,265 @@
+.manual-valve-control {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 24px;
+  margin-top: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.valve-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Valve Visual Section */
+.valve-visual {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.valve-icon {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #f0f0f0;
+  transition: all 0.3s ease;
+}
+
+.valve-icon.open {
+  color: #22c55e;
+  background: #dcfce7;
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+}
+
+.valve-icon.closed {
+  color: #ef4444;
+  background: #fee2e2;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+}
+
+.valve-icon svg {
+  width: 100%;
+  height: 100%;
+  stroke: currentColor;
+}
+
+.valve-status-text {
+  flex: 1;
+}
+
+.valve-status-text h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.valve-status-text .status {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  transition: color 0.3s ease;
+}
+
+.valve-status-text .status.open {
+  color: #22c55e;
+}
+
+.valve-status-text .status.closed {
+  color: #ef4444;
+}
+
+.reading-status {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  transition: color 0.3s ease;
+}
+
+.reading-status.blocked {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+/* Error Message */
+.error-message {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border-left: 4px solid #ef4444;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Buttons Section */
+.valve-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.valve-btn {
+  flex: 1;
+  max-width: 160px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-icon {
+  font-size: 18px;
+}
+
+.btn-text {
+  white-space: nowrap;
+}
+
+.open-btn {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+}
+
+.open-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(34, 197, 94, 0.4);
+}
+
+.open-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.open-btn.active {
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  border: 2px solid #fff;
+}
+
+.open-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.close-btn {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+.close-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+}
+
+.close-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.close-btn.active {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  border: 2px solid #fff;
+}
+
+.close-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Timestamp */
+.valve-timestamp {
+  text-align: center;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 8px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .manual-valve-control {
+    padding: 16px;
+  }
+
+  .valve-visual {
+    flex-direction: column;
+    text-align: center;
+    gap: 16px;
+  }
+
+  .valve-buttons {
+    flex-direction: column;
+  }
+
+  .valve-btn {
+    max-width: none;
+  }
+
+  .valve-icon {
+    width: 70px;
+    height: 70px;
+  }
+
+  .valve-status-text h3 {
+    font-size: 16px;
+  }
+
+  .valve-status-text .status {
+    font-size: 14px;
+  }
+
+  .reading-status {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .manual-valve-control {
+    padding: 12px;
+  }
+
+  .valve-visual {
+    padding: 16px;
+  }
+
+  .valve-icon {
+    width: 60px;
+    height: 60px;
+  }
+
+  .valve-status-text h3 {
+    font-size: 14px;
+  }
+
+  .valve-status-text .status {
+    font-size: 13px;
+  }
+
+  .reading-status {
+    font-size: 12px;
+  }
+
+  .valve-btn {
+    font-size: 13px;
+    padding: 10px 16px;
+  }
+
+  .btn-icon {
+    font-size: 16px;
+  }
+}

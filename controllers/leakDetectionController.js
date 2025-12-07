@@ -3,13 +3,6 @@ const { AppError, asyncHandler } = require('../middleware/errorHandler');
 const { generateId, getCurrentTimestamp, formatSensorData } = require('../utils/helpers');
 const { model } = require('../utils/mlModel');
 
-// Global valve state
-let valveState = {
-  state: 'CLOSED',
-  lastUpdated: getCurrentTimestamp(),
-  lastAction: null
-};
-
 /**
  * GET /api/leak-detection
  * Get current leak detection status and predictions
@@ -42,11 +35,6 @@ const getLeakDetectionStatus = asyncHandler(async (req, res) => {
       riskLevel = 'MEDIUM';
     }
 
-    // Auto-close valve if risk is critical
-    if (riskLevel === 'CRITICAL' && valveState.state !== 'CLOSED') {
-      await controlValve('CLOSE', 'Automatic closure - Critical leak detected');
-    }
-
     // Get recent leak events
     const recentLeaks = await dbAll(
       'SELECT * FROM sensor_data WHERE leak_status = 1 ORDER BY timestamp DESC LIMIT 10'
@@ -62,7 +50,6 @@ const getLeakDetectionStatus = asyncHandler(async (req, res) => {
           timestamp: latestReading.timestamp
         },
         sensorReadings: formatSensorData(latestReading),
-        valveState: valveState.state,
         modelInfo: model.getModelInfo(),
         recentLeakEvents: recentLeaks.map(formatSensorData)
       }
@@ -139,137 +126,7 @@ const getLeakPredictions = asyncHandler(async (req, res) => {
   }
 });
 
-/**
- * Internal function to control valve
- */
-const controlValve = async (operation, reason = null) => {
-  const validOperations = ['OPEN', 'CLOSE'];
-  
-  if (!validOperations.includes(operation)) {
-    throw new AppError(`Invalid operation. Must be one of: ${validOperations.join(', ')}`, 400);
-  }
-
-  valveState.state = operation === 'OPEN' ? 'OPEN' : 'CLOSED';
-  valveState.lastUpdated = getCurrentTimestamp();
-  valveState.lastAction = operation;
-
-  // Log valve control action
-  const id = generateId();
-  const timestamp = getCurrentTimestamp();
-
-  try {
-    await dbRun(
-      `INSERT INTO valve_control_logs (id, operation, timestamp, reason, status) 
-       VALUES (?, ?, ?, ?, ?)`,
-      [id, operation, timestamp, reason || 'Manual control', 'SUCCESS']
-    );
-  } catch (error) {
-    console.error('Failed to log valve control action:', error);
-  }
-};
-
-/**
- * POST /api/valve-control
- * Open or close the main water valve
- */
-const controlValveEndpoint = asyncHandler(async (req, res) => {
-  console.log('[VALVE-CONTROL] POST request received:', req.body);
-  const { operation, reason } = req.body;
-
-  if (!operation) {
-    throw new AppError('Operation parameter is required (OPEN or CLOSE)', 400);
-  }
-
-  try {
-    await controlValve(operation, reason);
-    console.log('[VALVE-CONTROL] Valve operation successful:', operation);
-
-    res.json({
-      success: true,
-      data: {
-        operation,
-        newState: valveState.state,
-        timestamp: valveState.lastUpdated,
-        message: `Valve ${operation === 'OPEN' ? 'opened' : 'closed'} successfully`
-      }
-    });
-  } catch (error) {
-    console.log('[VALVE-CONTROL] Error:', error);
-    if (error instanceof AppError) {
-      throw error;
-    }
-    throw new AppError('Valve control operation failed', 500);
-  }
-});
-
-/**
- * GET /api/valve-control/status
- * Get current valve status
- */
-const getValveStatus = asyncHandler(async (req, res) => {
-  console.log('[VALVE-STATUS] GET request received');
-  try {
-    // Return mock data immediately without database query for testing
-    res.json({
-      success: true,
-      data: {
-        currentState: valveState.state,
-        lastUpdated: valveState.lastUpdated,
-        lastAction: valveState.lastAction,
-        recentActions: []
-      }
-    });
-  } catch (error) {
-    console.log('[VALVE-STATUS] Error:', error);
-    throw new AppError('Failed to get valve status', 500);
-  }
-});
-
-/**
- * GET /api/valve-control/history
- * Get valve control history
- */
-const getValveHistory = asyncHandler(async (req, res) => {
-  const { limit = 50 } = req.query;
-  console.log('[VALVE-HISTORY] GET request received, limit:', limit);
-
-  try {
-    const history = await dbAll(
-      'SELECT * FROM valve_control_logs ORDER BY timestamp DESC LIMIT ?',
-      [parseInt(limit)]
-    ) || [];
-
-    console.log('[VALVE-HISTORY] Retrieved', history.length, 'records');
-
-    // Normalize records to the shape the frontend expects (action, timestamp, status, success, details)
-    const normalized = (history || []).map(record => ({
-      id: record.id,
-      action: record.operation || record.action,
-      timestamp: record.timestamp,
-      status: record.status,
-      success: String(record.status || '').toUpperCase() === 'SUCCESS',
-      details: record.reason || record.details || null,
-      createdAt: record.created_at
-    }));
-
-    res.json({
-      success: true,
-      data: normalized
-    });
-  } catch (error) {
-    console.log('[VALVE-HISTORY] Error:', error);
-    throw new AppError('Failed to retrieve valve history', 500);
-  }
-});
-
 module.exports = {
   getLeakDetectionStatus,
-  getLeakPredictions,
-  controlValveEndpoint,
-  getValveStatus,
-  getValveHistory,
-  controlValve  // Export for integrated controller auto-close
+  getLeakPredictions
 };
-
-// Also export valveState for other modules (sensor controller) to check current valve position
-module.exports.valveState = valveState;

@@ -5,7 +5,6 @@ import { WebSocketContextProvider } from './context/WebSocketContext';
 import Dashboard from './components/Dashboard';
 import HistoricalData from './components/HistoricalData';
 import LeakAlertPanel from './components/LeakAlertPanel';
-import ValveControl from './components/ValveControl';
 import LeakPrediction from './components/LeakPrediction';
 import PredictiveMaintenance from './components/PredictiveMaintenance';
 import ConnectionStatus from './components/ConnectionStatus';
@@ -13,7 +12,6 @@ import {
   FiBarChart2,
   FiTrendingUp,
   FiAlertTriangle,
-  FiPower,
   FiCpu,
   FiTool,
 } from 'react-icons/fi';
@@ -50,11 +48,6 @@ const Navigation = () => {
             </Link>
           </li>
           <li>
-            <Link to="/valve" onClick={() => setIsOpen(false)}>
-              <FiPower /> Valve Control
-            </Link>
-          </li>
-          <li>
             <Link to="/leak-prediction" onClick={() => setIsOpen(false)}>
               <FiCpu /> Leak Prediction
             </Link>
@@ -85,7 +78,6 @@ const App = () => {
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/historical" element={<HistoricalData />} />
                 <Route path="/alerts" element={<LeakAlertPanel />} />
-                <Route path="/valve" element={<ValveControl />} />
                 <Route path="/leak-prediction" element={<LeakPrediction />} />
                 <Route path="/maintenance" element={<PredictiveMaintenance />} />
                 <Route path="*" element={<NotFound />} />

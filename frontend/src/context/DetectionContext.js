@@ -1,5 +1,5 @@
 import React, { createContext, useState, useCallback, useEffect } from 'react';
-import { detectionAPI, leakDetectionAPI, sensorAPI, heltecValveController } from '../services/apiClient';
+import { detectionAPI, leakDetectionAPI, sensorAPI } from '../services/apiClient';
 
 export const DetectionContext = createContext();
 
@@ -223,10 +223,10 @@ export const DetectionContextProvider = ({ children }) => {
     }
   }, []);
 
-  // Control valve (via Heltec WiFi directly)
+  // Control valve (via backend API)
   const controlValve = useCallback(async (action) => {
     try {
-      console.log('[CONTEXT] Controlling valve via Heltec WiFi', { action });
+      console.log('[CONTEXT] Controlling valve', { action });
       
       // Normalize action to uppercase
       const normalizedAction = (action || '').toString().toUpperCase();
@@ -235,19 +235,12 @@ export const DetectionContextProvider = ({ children }) => {
         throw new Error(`Invalid valve action: ${action}. Must be OPEN or CLOSE`);
       }
 
-      // Try Heltec WiFi first
       let response;
       try {
-        if (normalizedAction === 'OPEN') {
-          response = await heltecValveController.openValve();
-        } else {
-          response = await heltecValveController.closeValve();
-        }
-        console.log('[CONTEXT] Valve action via WiFi successful', response);
-      } catch (wifiError) {
-        console.warn('[CONTEXT] WiFi valve control failed, falling back to backend:', wifiError.message);
-        // Fallback: use backend control
         response = await leakDetectionAPI.controlValve(normalizedAction);
+      } catch (apiError) {
+        console.warn('[CONTEXT] Valve control failed:', apiError.message);
+        throw apiError;
       }
 
       // Update valve status locally for responsive UI
@@ -277,44 +270,6 @@ export const DetectionContextProvider = ({ children }) => {
       throw err;
     }
   }, [fetchValveStatus]);
-
-  // Get valve status directly from Heltec WiFi
-  const getHeltecValveStatus = useCallback(async () => {
-    try {
-      console.log('[CONTEXT] Fetching valve status from Heltec WiFi');
-      const response = await heltecValveController.getStatus();
-      console.log('[CONTEXT] Heltec valve status:', response);
-      
-      const data = response?.data || {};
-      const status = {
-        valve_state: data.valve_state || 'UNKNOWN',
-        currentState: data.valve_state || 'UNKNOWN',
-        uptime_ms: data.uptime_ms || 0,
-        changes: data.changes || 0,
-        lastUpdated: Date.now(),
-        source: 'heltec_wifi'
-      };
-      
-      setValveStatus(status);
-      return status;
-    } catch (err) {
-      console.error('[CONTEXT] Failed to get Heltec valve status:', err.message);
-      return null;
-    }
-  }, []);
-
-  // Check Heltec connectivity
-  const checkHeltecConnection = useCallback(async () => {
-    try {
-      console.log('[CONTEXT] Checking Heltec WiFi connection');
-      const isConnected = await heltecValveController.checkConnection();
-      console.log('[CONTEXT] Heltec connection status:', isConnected ? 'OK' : 'FAILED');
-      return isConnected;
-    } catch (err) {
-      console.error('[CONTEXT] Heltec connection check error:', err.message);
-      return false;
-    }
-  }, []);
 
   // Filter historical data by time range
   const filterDataByTimeRange = useCallback((startDate, endDate) => {
@@ -388,9 +343,6 @@ export const DetectionContextProvider = ({ children }) => {
     processSensorReading,
     controlValve,
     filterDataByTimeRange,
-    // Heltec WiFi methods
-    getHeltecValveStatus,
-    checkHeltecConnection,
   };
 
   return (
