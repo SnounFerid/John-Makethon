@@ -134,6 +134,12 @@ class DualAIIntegratedEngine {
     // Step 5: Generate alert if probability changed significantly
     const alert = this._generateAlertIfNeeded(combinedResult, features);
 
+    // Step 6: Auto-close valve if probability exceeds 85%
+    let autoCloseAction = null;
+    if (combinedResult.overallProbability >= 85 && features.valve_state === 'OPEN') {
+      autoCloseAction = this._triggerAutoClose(combinedResult, features);
+    }
+
     // Store in history
     this.detectionHistory.push({
       id,
@@ -142,7 +148,8 @@ class DualAIIntegratedEngine {
       ruleBasedResult,
       dualAIResult,
       combinedResult,
-      alert
+      alert,
+      autoCloseAction
     });
 
     if (this.detectionHistory.length > 10000) {
@@ -154,6 +161,7 @@ class DualAIIntegratedEngine {
       timestamp,
       detectionResultSummary: combinedResult,
       alert: alert || null,
+      autoCloseAction: autoCloseAction || null,
       systemStatus: this.systemStatus
     };
   }
@@ -256,7 +264,7 @@ class DualAIIntegratedEngine {
   /**
    * Generate alert with TWO conditions:
    * 1. Between consecutive alerts: variance must be >= 20%
-   * 2. Between current and alert-before-last: variance must be >= 10%
+   * 2. Between current and alert-before-last: variance must be >= 15%
    */
   _generateAlertIfNeeded(combinedResult, features) {
     const currentProb = combinedResult.overallProbability;
@@ -267,9 +275,9 @@ class DualAIIntegratedEngine {
       return null; // Not enough variance from last alert
     }
     
-    // Condition 2: Must differ from alert-before-last by at least 10%
+    // Condition 2: Must differ from alert-before-last by at least 15%
     const diffFromSecondLastAlert = Math.abs(currentProb - this.secondLastAlertProbability);
-    if (diffFromSecondLastAlert < 10) {
+    if (diffFromSecondLastAlert < 15) {
       return null; // Not enough variance from alert before last
     }
 
@@ -480,6 +488,25 @@ class DualAIIntegratedEngine {
       recentAlerts: this.getRecentAlerts(20),
       recentDetections: this.getRecentDetections(50)
     };
+  }
+
+  /**
+   * Trigger automatic valve closure when probability exceeds 85%
+   */
+  _triggerAutoClose(combinedResult, features) {
+    const autoCloseInfo = {
+      triggered: true,
+      timestamp: getCurrentTimestamp(),
+      probability: combinedResult.overallProbability,
+      severity: combinedResult.severityLevel,
+      reason: `Auto-close triggered at ${combinedResult.overallProbability}% leak probability (threshold: 85%)`
+    };
+
+    console.log(`[DUAL_AI_ENGINE] 🔴 AUTO-CLOSE TRIGGERED: ${autoCloseInfo.reason}`);
+    console.log(`[DUAL_AI_ENGINE] Location: ${features.location || 'Main line'}`);
+    console.log(`[DUAL_AI_ENGINE] Valve will be closed automatically by integrated controller`);
+
+    return autoCloseInfo;
   }
 
   /**

@@ -1,27 +1,29 @@
 {
+  "type": "linear_regression_leak_prediction",
   "features": [
-    "Pressure_PSI",
-    "Flow_GPM",
-    "Velocity_FPS",
-    "Temperature_F"
+    "pressure",
+    "flow",
+    "temperature",
+    "conductivity"
   ],
-  "mean": {
-    "Pressure_PSI": 44.593462684748864,
-    "Flow_GPM": 27.924743110003718,
-    "Velocity_FPS": 1.1166377880522436,
-    "Temperature_F": 68.4012532685119
+  "weights": {
+    "pressure": -0.1377406170873165,
+    "flow": 0.10355440858121712,
+    "temperature": -0.001955397440106305,
+    "conductivity": 0.0395969258838291
   },
-  "std": {
-    "Pressure_PSI": 11.290371936638943,
-    "Flow_GPM": 16.670896512079658,
-    "Velocity_FPS": 0.6670044079934386,
-    "Temperature_F": 1.8355291645401826
+  "featureMeans": {
+    "pressure": 41.4212761136313,
+    "flow": 29.39566633201301,
+    "temperature": 21.456929215764003,
+    "conductivity": 462.74751595616704
   },
-  "coefficients": {
-    "Pressure_PSI": 0.29208548429532755,
-    "Flow_GPM": 0.29013855612819184,
-    "Velocity_FPS": 0.2901457195646882,
-    "Temperature_F": 0.12763024001179224
+  "featureStdDevs": {
+    "pressure": 14.463808869862046,
+    "flow": 14.961304783326572,
+    "temperature": 2.5576914540708855,
+    "conductivity": 163.72224138019556
   },
-  "intercept": 0
+  "bias": 0.3246346771450134,
+  "isTrained": true
 }

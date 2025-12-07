@@ -21,9 +21,9 @@ const {
 router.get('/', getLeakDetectionStatus);
 router.get('/predictions', getLeakPredictions);
 
-// Valve Control
-router.post('/control', controlValveEndpoint);
-router.get('/control/status', getValveStatus);
-router.get('/control/history', getValveHistory);
+// Valve Control (mounted at /api/leak-detection, so paths map to /api/valve-control)
+router.post('/valve-control', controlValveEndpoint);
+router.get('/valve-control/status', getValveStatus);
+router.get('/valve-control/history', getValveHistory);
 
 module.exports = router;

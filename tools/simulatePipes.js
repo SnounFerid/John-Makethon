@@ -36,15 +36,53 @@ console.log("Type 'help' for available commands. Press Ctrl+C to exit.\n");
 let intervalMs = 1000;
 let isPosting = true;
 let dataCount = 0;
+let cachedValveState = 'OPEN';
+let lastValveStateCheck = 0;
+const VALVE_STATE_CACHE_MS = 2000; // Cache valve state for 2 seconds
+
+/**
+ * Get current valve state from backend
+ */
+async function getValveState() {
+  const now = Date.now();
+  if (now - lastValveStateCheck < VALVE_STATE_CACHE_MS) {
+    return cachedValveState;
+  }
+
+  try {
+    if (typeof fetch === 'undefined') {
+      // eslint-disable-next-line global-require
+      global.fetch = require('node-fetch');
+    }
+
+    const resp = await fetch(`${BACKEND_URL}/api/valve-control/status`);
+    if (resp.ok) {
+      const json = await resp.json();
+      cachedValveState = json.data?.state || 'OPEN';
+      lastValveStateCheck = now;
+    }
+  } catch (err) {
+    // Silently fail - use cached state
+  }
+  return cachedValveState;
+}
 
 // Register callback to post data to backend
 simulator.onData(async (data) => {
   if (!isPosting) return;
 
+  // Get current valve state from backend
+  const valveState = await getValveState();
+
+  // Only post data if valve is OPEN
+  if (String(valveState).toUpperCase() === 'CLOSED') {
+    return; // Skip posting when valve is closed
+  }
+
   // Build payload using all generated data fields so frontend and backend receive temperature, etc.
   const payload = {
     ...data,
-    valve_state: data.valve_state || 'OPEN'
+    valve_state: valveState
   };
 
   try {

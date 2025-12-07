@@ -2,11 +2,13 @@
  * Integrated API Controller
  * Bridges the dual AI leak detection engine with Express API endpoints
  * Uses LSTM for anomaly detection + Regression for predictive maintenance
+ * Includes WiFi valve control for Heltec V2
  */
 
 const { dualAIEngine } = require('../utils/dualAIIntegratedEngine');
 const { integratedEngine } = require('../utils/integratedEngine'); // Keep for backward compatibility
 const { AppError, asyncHandler } = require('../middleware/errorHandler');
+const { getWiFiValveController } = require('../utils/wifiValveController');
 
 /**
  * Initialize the dual AI detection engine
@@ -72,6 +74,32 @@ const processIntegratedReading = asyncHandler(async (req, res) => {
 
     if (!result) {
       throw new AppError('Processing failed', 500);
+    }
+
+    // Handle auto-close if triggered (probability >= 85%)
+    if (result.autoCloseAction && result.autoCloseAction.triggered) {
+      try {
+        // Try WiFi valve first (Heltec V2)
+        const wifiValve = getWiFiValveController();
+        if (wifiValve && wifiValve.isConnected) {
+          console.log('[INTEGRATED_CONTROLLER] 🌐 Using WiFi valve control');
+          await wifiValve.closeValve(result.autoCloseAction.reason);
+          result.autoCloseAction.valveClosedSuccessfully = true;
+          result.autoCloseAction.method = 'WiFi (Heltec V2)';
+        } else {
+          // Fallback to local valve control
+          console.log('[INTEGRATED_CONTROLLER] 💾 Using local valve control');
+          const { controlValve } = require('./leakDetectionController');
+          await controlValve('CLOSE', `Auto-close: ${result.autoCloseAction.reason}`);
+          result.autoCloseAction.valveClosedSuccessfully = true;
+          result.autoCloseAction.method = 'Local (Simulation)';
+        }
+        console.log('[INTEGRATED_CONTROLLER] ✅ Valve auto-closed successfully');
+      } catch (error) {
+        console.error('[INTEGRATED_CONTROLLER] ⚠️  Failed to auto-close valve:', error.message);
+        result.autoCloseAction.valveClosedSuccessfully = false;
+        result.autoCloseAction.error = error.message;
+      }
     }
 
     res.json({

@@ -128,6 +128,159 @@ export const leakDetectionAPI = {
   },
 };
 
+/**
+ * Heltec WiFi Valve Controller - Direct HTTP calls to ESP32
+ * No backend routing, direct WiFi communication
+ */
+export const heltecValveController = {
+  // Heltec IP configuration (from environment or fallback)
+  HELTEC_IP: process.env.REACT_APP_HELTEC_IP || '192.168.1.152',
+  HELTEC_PORT: process.env.REACT_APP_HELTEC_PORT || 80,
+  REQUEST_TIMEOUT: 5000, // 5 second timeout
+
+  // Build Heltec URL
+  _buildUrl: (endpoint) => {
+    const ip = process.env.REACT_APP_HELTEC_IP || '192.168.1.152';
+    const port = process.env.REACT_APP_HELTEC_PORT || 80;
+    return `http://${ip}:${port}${endpoint}`;
+  },
+
+  // Helper: Fetch with timeout
+  _fetchWithTimeout: async (url, options = {}, timeoutMs = 5000) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      throw error;
+    }
+  },
+
+  // Open valve
+  openValve: async () => {
+    try {
+      console.log('[HELTEC WIFI] Sending OPEN command to Heltec');
+      const response = await heltecValveController._fetchWithTimeout(
+        heltecValveController._buildUrl('/open'),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        },
+        heltecValveController.REQUEST_TIMEOUT
+      );
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const data = await response.json();
+      console.log('[HELTEC WIFI] Valve opened successfully:', data);
+      return { success: true, data };
+    } catch (error) {
+      console.error('[HELTEC WIFI] Failed to open valve:', error.message);
+      throw error;
+    }
+  },
+
+  // Close valve
+  closeValve: async () => {
+    try {
+      console.log('[HELTEC WIFI] Sending CLOSE command to Heltec');
+      const response = await heltecValveController._fetchWithTimeout(
+        heltecValveController._buildUrl('/close'),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        },
+        heltecValveController.REQUEST_TIMEOUT
+      );
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const data = await response.json();
+      console.log('[HELTEC WIFI] Valve closed successfully:', data);
+      return { success: true, data };
+    } catch (error) {
+      console.error('[HELTEC WIFI] Failed to close valve:', error.message);
+      throw error;
+    }
+  },
+
+  // Get valve status
+  getStatus: async () => {
+    try {
+      console.log('[HELTEC WIFI] Fetching valve status from Heltec');
+      const response = await heltecValveController._fetchWithTimeout(
+        heltecValveController._buildUrl('/status'),
+        {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        },
+        heltecValveController.REQUEST_TIMEOUT
+      );
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const data = await response.json();
+      console.log('[HELTEC WIFI] Valve status:', data);
+      return { success: true, data };
+    } catch (error) {
+      console.error('[HELTEC WIFI] Failed to get valve status:', error.message);
+      throw error;
+    }
+  },
+
+  // Get device info
+  getInfo: async () => {
+    try {
+      console.log('[HELTEC WIFI] Fetching device info from Heltec');
+      const response = await heltecValveController._fetchWithTimeout(
+        heltecValveController._buildUrl('/info'),
+        {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        },
+        heltecValveController.REQUEST_TIMEOUT
+      );
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const data = await response.json();
+      console.log('[HELTEC WIFI] Device info:', data);
+      return { success: true, data };
+    } catch (error) {
+      console.error('[HELTEC WIFI] Failed to get device info:', error.message);
+      throw error;
+    }
+  },
+
+  // Check Heltec connectivity
+  checkConnection: async () => {
+    try {
+      console.log('[HELTEC WIFI] Checking connection to Heltec');
+      const response = await heltecValveController._fetchWithTimeout(
+        heltecValveController._buildUrl('/info'),
+        {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        },
+        3000 // Shorter timeout for connectivity check
+      );
+      const isConnected = response.ok;
+      console.log('[HELTEC WIFI] Connection check:', isConnected ? 'OK' : 'FAILED');
+      return isConnected;
+    } catch (error) {
+      console.error('[HELTEC WIFI] Connection check failed:', error.message);
+      return false;
+    }
+  }
+};
+
 // ===== INTEGRATED DETECTION ENDPOINTS =====
 export const detectionAPI = {
   // Initialize detection engine
